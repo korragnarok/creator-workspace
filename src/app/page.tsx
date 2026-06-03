@@ -75,9 +75,9 @@ function StatusPill({ children }: { children: React.ReactNode }) {
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#f6f5f2] text-slate-950">
+    <main className="min-h-screen overflow-x-hidden bg-[#f6f5f2] text-slate-950">
       <div className="grid min-h-screen lg:grid-cols-[248px_1fr]">
-        <aside className="border-b border-slate-200 bg-white px-4 py-5 lg:border-b-0 lg:border-r">
+        <aside className="min-w-0 overflow-hidden border-b border-slate-200 bg-white px-4 py-5 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-3 px-2">
             <div className="flex size-10 items-center justify-center rounded-lg bg-slate-950 text-white">
               <Archive size={20} aria-hidden="true" />
@@ -88,7 +88,7 @@ export default function Home() {
             </div>
           </div>
 
-          <nav className="mt-7 flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+          <nav className="mt-7 flex max-w-full gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -109,7 +109,7 @@ export default function Home() {
           </nav>
         </aside>
 
-        <section className="px-4 py-5 sm:px-6 lg:px-8">
+        <section className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
           <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Wednesday workspace</p>
