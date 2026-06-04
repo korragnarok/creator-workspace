@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type ItemType = "task" | "hook" | "product" | "script" | "content";
@@ -265,30 +267,34 @@ function IconSlot({ tone = "neutral" }: { tone?: "neutral" | "rose" | "sage" | "
     sand: "border-[color:var(--sand)] bg-[color:var(--sand)]",
   };
 
-  return (
-    <span
-      aria-label="Icon placeholder"
-      className={`grid size-9 shrink-0 place-items-center rounded-lg border ${toneClasses[tone]}`}
-    >
-      <span className="size-3 rounded-sm border border-current opacity-70" />
-    </span>
-  );
-}
+	  return (
+	    <span
+	      aria-label="Icon placeholder"
+	      className={`grid size-9 shrink-0 place-items-center rounded-lg border ${toneClasses[tone]}`}
+	    >
+	      <img alt="" className="size-5 object-contain" src={`/icons/${tone}-icon-placeholder.png`} />
+	    </span>
+	  );
+	}
 
 function CategoryIcon({ category }: { category: string }) {
   const normalizedCategory = normalizeProductCategory(category);
   const categoryIndex = productCategories.indexOf(normalizedCategory);
   const tones = ["bg-[color:var(--sage-soft)]", "bg-[color:var(--rose)]", "bg-[color:var(--cream)]", "bg-[color:var(--sand)]", "bg-white/70", "bg-[color:var(--sage-soft)]"];
 
-  return (
-    <span
-      aria-label={`${normalizedCategory} icon placeholder`}
-      className={`grid size-11 shrink-0 place-items-center rounded-xl border border-[color:var(--line)] ${tones[categoryIndex]}`}
-    >
-      <span className="size-5 rounded-md border border-current opacity-60" />
-    </span>
-  );
-}
+	  return (
+	    <span
+	      aria-label={`${normalizedCategory} icon placeholder`}
+	      className={`grid size-11 shrink-0 place-items-center rounded-xl border border-[color:var(--line)] ${tones[categoryIndex]}`}
+	    >
+	      <img
+	        alt=""
+	        className="size-6 object-contain"
+	        src={`/icons/${normalizedCategory.toLowerCase()}-category-icon.png`}
+	      />
+	    </span>
+	  );
+	}
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -388,38 +394,39 @@ export default function Home() {
     window.localStorage.setItem(storageKey, JSON.stringify(data));
   }, [data]);
 
-  const todaysProducts = useMemo(() => data.dailyProducts[selectedDate] ?? [], [data.dailyProducts, selectedDate]);
-  const completedToday = todaysProducts.filter((product) => product.done).length;
+	  const todaysProducts = useMemo(() => data.dailyProducts[selectedDate] ?? [], [data.dailyProducts, selectedDate]);
+	  const completedToday = todaysProducts.filter((product) => product.done).length;
+	  const totalUnitsSold = useMemo(() => data.products.reduce((total, product) => total + product.unitsSold, 0), [data.products]);
 
-  const metrics = useMemo(
-    () => [
-      {
-        label: "products today",
-        value: todaysProducts.length,
-        note: `${completedToday} completed`,
-        tone: "rose" as const,
-      },
-      {
-        label: "hooks saved",
-        value: data.hooks.length,
-        note: "total",
-        tone: "sage" as const,
-      },
-      {
-        label: "products saved",
-        value: data.products.length,
-        note: "total",
-        tone: "clay" as const,
-      },
-      {
-        label: "scripts saved",
-        value: data.scripts.length,
-        note: "total",
-        tone: "sand" as const,
-      },
-    ],
-    [completedToday, data, todaysProducts.length],
-  );
+	  const metrics = useMemo(
+	    () => [
+	      {
+	        label: "total products",
+	        value: data.products.length,
+	        note: "in product bank",
+	        tone: "rose" as const,
+	      },
+	      {
+	        label: "total videos",
+	        value: data.content.length,
+	        note: "tracked",
+	        tone: "sage" as const,
+	      },
+	      {
+	        label: "units sold",
+	        value: totalUnitsSold,
+	        note: "total",
+	        tone: "clay" as const,
+	      },
+	      {
+	        label: "to do",
+	        value: todaysProducts.length,
+	        note: `${completedToday} done today`,
+	        tone: "sand" as const,
+	      },
+	    ],
+	    [completedToday, data.content.length, data.products.length, todaysProducts.length, totalUnitsSold],
+	  );
 
   const query = search.trim().toLowerCase();
   const dailyBrands = useMemo(
@@ -815,9 +822,9 @@ export default function Home() {
               className="grid size-11 place-items-center rounded-full border border-[color:var(--line)] bg-white/70 lg:hidden"
               type="button"
               aria-label="Notifications"
-            >
-              <span className="size-4 rounded-sm border border-current opacity-70" />
-            </button>
+	            >
+	              <img alt="" className="size-5 object-contain" src="/icons/notification-icon.png" />
+	            </button>
           </div>
 
           <nav className="mt-8 hidden max-w-full gap-2 overflow-x-auto pb-1 lg:flex lg:flex-col lg:overflow-visible lg:pb-0">
@@ -856,7 +863,9 @@ export default function Home() {
           </div>
 
           <div className="mt-10 hidden rounded-xl border border-[color:var(--line)] bg-white/70 p-3 lg:flex lg:items-center lg:gap-3">
-            <div className="grid size-10 place-items-center rounded-full bg-[color:var(--sage)] text-white">K</div>
+	            <div className="grid size-10 place-items-center overflow-hidden rounded-full bg-[color:var(--sage)] text-white">
+	              <img alt="" className="size-full object-cover" src="/icons/profile-avatar-placeholder.png" />
+	            </div>
             <div>
               <p className="text-sm font-semibold">Kourtney</p>
               <p className="text-xs text-[color:var(--muted)]">Creator</p>
@@ -867,9 +876,9 @@ export default function Home() {
         <section className="min-w-0">
           <header className="hidden items-center justify-between gap-3 border-b border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3 sm:flex sm:px-8">
             <div className="hidden text-sm text-[color:var(--muted)] sm:block">Saved in this browser</div>
-            <div className="ml-auto flex items-center gap-3">
-              <label className="flex h-10 w-full min-w-0 max-w-xs items-center gap-2 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm text-[color:var(--muted)] sm:w-80">
-                <span className="size-3 rounded-sm border border-current opacity-60" aria-label="Icon placeholder" />
+	            <div className="ml-auto flex items-center gap-3">
+	              <label className="flex h-10 w-full min-w-0 max-w-xs items-center gap-2 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm text-[color:var(--muted)] sm:w-80">
+	                <img alt="" className="size-4 object-contain" src="/icons/search-icon.png" />
                 <input
                   className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[color:var(--muted)]"
                   onChange={(event) => setSearch(event.target.value)}
@@ -885,7 +894,9 @@ export default function Home() {
               >
                 Reset
               </button>
-              <div className="grid size-10 place-items-center rounded-full bg-[color:var(--sage)] text-white">K</div>
+	              <div className="grid size-10 place-items-center overflow-hidden rounded-full bg-[color:var(--sage)] text-white">
+	                <img alt="" className="size-full object-cover" src="/icons/profile-avatar-placeholder.png" />
+	              </div>
             </div>
           </header>
 
@@ -902,10 +913,10 @@ export default function Home() {
                   </p>
                 </div>
 
-                <div className="min-h-40 rounded-2xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#8c8d78,#d8b4a9)] p-5 text-white shadow-sm sm:hidden">
-                  <p className="max-w-28 text-2xl leading-snug">small steps create big content.</p>
-                  <div className="mt-5 h-12 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
-                </div>
+	                <div className="min-h-40 rounded-2xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#a45166,#ead5d1)] p-5 text-white shadow-sm sm:hidden">
+	                  <p className="max-w-28 text-2xl leading-snug">small steps create big content.</p>
+	                  <img alt="" className="mt-5 h-12 w-full rounded-lg border border-white/35 bg-white/15 object-cover" src="/images/small-steps-card.png" />
+	                </div>
 
 			                <div className="col-span-2 mt-5 flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1fr)]">
 			                  <div className="order-1 grid min-w-0 grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3">
@@ -1286,10 +1297,10 @@ export default function Home() {
                   </form>
                 </Panel>
 
-                <section className="hidden min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#8c8d78,#d8b4a9)] p-7 text-white shadow-sm sm:block">
-                  <p className="max-w-48 text-3xl leading-snug">small steps create big content.</p>
-                  <div className="mt-8 h-24 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
-	                </section>
+	                <section className="hidden min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#a45166,#ead5d1)] p-7 text-white shadow-sm sm:block">
+	                  <p className="max-w-48 text-3xl leading-snug">small steps create big content.</p>
+	                  <img alt="" className="mt-8 h-24 w-full rounded-lg border border-white/35 bg-white/15 object-cover" src="/images/small-steps-card.png" />
+		                </section>
 	              </div>
 	              ) : null}
 
@@ -1400,13 +1411,13 @@ export default function Home() {
 	                  </button>
 	                </Panel>
 
-	                {activeView === "home" ? (
-	                <Panel>
-	                  <SectionHeader title="Recent Scripts" count={filtered.scripts.length} actionLabel="+ New Script" onAction={() => startAdd("script")} />
-                  <div className="space-y-3">
-                    {filtered.scripts.length ? (
-                      filtered.scripts.slice(0, 4).map((script) => (
-                        <article key={script.id} className="flex gap-3 rounded-lg border border-[color:var(--line)] bg-[color:var(--cream)]/60 p-3">
+		                {activeView === "home" ? (
+		                <Panel className="!bg-[color:var(--rose)]/70">
+		                  <SectionHeader title="Recent Scripts" count={filtered.scripts.length} actionLabel="+ New Script" onAction={() => startAdd("script")} />
+	                  <div className="space-y-3">
+	                    {filtered.scripts.length ? (
+	                      filtered.scripts.slice(0, 4).map((script) => (
+	                        <article key={script.id} className="flex gap-3 rounded-lg border border-[color:var(--line)] bg-white/55 p-3">
                           <IconSlot tone="neutral" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold">{script.title}</p>
@@ -1463,8 +1474,8 @@ export default function Home() {
                 </Panel>
                 ) : null}
 
-	                {(activeView === "home" || activeView === "products") ? (
-	                <Panel>
+		                {(activeView === "home" || activeView === "products") ? (
+		                <Panel className={activeView === "home" ? "!bg-[color:var(--rose)]/70" : ""}>
 	                  <SectionHeader
 	                    title={activeView === "products" ? "Product Bank" : "Recent Products"}
 	                    count={filtered.products.length}
@@ -1474,7 +1485,7 @@ export default function Home() {
                   <div className="space-y-2">
                     {filtered.products.length ? (
                       filtered.products.slice(0, activeView === "products" ? undefined : 4).map((product) => (
-                        <article key={product.id} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/60 p-2">
+	                        <article key={product.id} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/55 p-2">
                           <IconSlot tone="clay" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold">{product.name}</p>
