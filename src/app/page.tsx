@@ -883,21 +883,62 @@ export default function Home() {
                   <div className="mt-5 h-12 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
                 </div>
 
-	                <div className="col-span-2 mt-5 grid min-w-0 grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
-                  {metrics.map((metric) => (
-	                    <article key={metric.label} className="min-w-0 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 shadow-sm sm:p-4">
-                      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
-                        <IconSlot tone={metric.tone} />
-                        <div className="min-w-0">
-                          <p className="text-xs leading-4 text-[color:var(--muted)] sm:text-sm">{metric.label}</p>
-                          <p className="text-2xl font-semibold sm:text-3xl">{metric.value}</p>
-                          <p className="text-xs leading-4 text-[color:var(--sage)] sm:text-sm">{metric.note}</p>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
+			                <div className="col-span-2 mt-5 flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1fr)]">
+			                  <div className="order-1 grid min-w-0 grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3">
+		                    {metrics.map((metric) => (
+		                      <article key={metric.label} className="min-w-0 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 shadow-sm sm:p-4">
+		                        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 xl:flex-col xl:items-start">
+		                          <IconSlot tone={metric.tone} />
+		                          <div className="min-w-0">
+		                            <p className="text-xs leading-4 text-[color:var(--muted)] sm:text-sm">{metric.label}</p>
+		                            <p className="text-2xl font-semibold sm:text-3xl">{metric.value}</p>
+		                            <p className="text-xs leading-4 text-[color:var(--sage)] sm:text-sm">{metric.note}</p>
+		                          </div>
+		                        </div>
+		                      </article>
+		                    ))}
+		                  </div>
+
+			                  <Panel className="order-2 bg-[color:var(--foreground)] text-[color:var(--paper)]">
+		                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+		                      <div>
+		                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--sand)]">Leaderboard</p>
+		                        <h2 className="mt-1 text-lg font-semibold">Top Products Sold</h2>
+		                      </div>
+		                      <span className="text-sm text-[color:var(--sand)]">{topProducts.length} ranked</span>
+		                    </div>
+		                    <div className="space-y-1">
+		                      {topProducts.length ? (
+		                        topProducts.map((product, index) => (
+		                          <article key={product.id} className="grid min-w-0 grid-cols-[auto_1fr] gap-3 border-b border-white/10 py-3 last:border-b-0 sm:grid-cols-[auto_1fr_minmax(96px,180px)_auto] sm:items-center">
+		                            <CategoryIcon category={product.category} />
+		                            <div className="min-w-0">
+		                              <p className="truncate text-sm font-semibold">{product.name}</p>
+		                              <p className="text-xs text-white/55">
+		                                #{index + 1} · {product.brand || "No brand"} · {normalizeProductCategory(product.category)}
+		                              </p>
+		                            </div>
+		                            <div className="col-span-2 h-2 rounded-full bg-white/15 sm:col-span-1">
+		                              <div
+		                                className="h-full rounded-full bg-[color:var(--sage-soft)]"
+		                                style={{ width: `${topProductMaxUnits ? Math.max((product.unitsSold / topProductMaxUnits) * 100, 8) : 0}%` }}
+		                              />
+		                            </div>
+		                            <span className="justify-self-end rounded-full bg-white/10 px-3 py-1 text-xs text-[color:var(--sand)] sm:justify-self-auto">
+		                              {product.unitsSold} sold
+		                            </span>
+		                          </article>
+		                        ))
+		                      ) : (
+		                        <div className="rounded-lg border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white/70">
+		                          <p>No product sales saved yet.</p>
+		                          <p className="mt-1 text-[color:var(--sand)]">Add units sold in Product Bank to see top products.</p>
+		                        </div>
+		                      )}
+		                    </div>
+		                  </Panel>
+		                </div>
+	              </section>
               ) : (
                 <section className="rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-5 shadow-sm">
                   <p className="text-sm text-[color:var(--sage)]">Creator workspace</p>
@@ -1436,49 +1477,8 @@ export default function Home() {
 	                  </div>
 	                </Panel>
 	                ) : null}
-
-		                {activeView === "home" ? (
-		                <Panel className="bg-[color:var(--foreground)] text-[color:var(--paper)]">
-		                  <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
-		                    <div>
-		                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--sand)]">Leaderboard</p>
-		                      <h2 className="mt-1 text-lg font-semibold">Top Products Sold</h2>
-		                    </div>
-		                    <span className="text-sm text-[color:var(--sand)]">{topProducts.length} ranked</span>
-		                  </div>
-		                  <div className="space-y-1">
-		                    {topProducts.length ? (
-		                      topProducts.map((product, index) => (
-		                        <article key={product.id} className="grid min-w-0 grid-cols-[auto_1fr] gap-3 border-b border-white/10 py-3 last:border-b-0 sm:grid-cols-[auto_1fr_minmax(96px,180px)_auto] sm:items-center">
-		                          <CategoryIcon category={product.category} />
-		                          <div className="min-w-0">
-		                            <p className="truncate text-sm font-semibold">{product.name}</p>
-		                            <p className="text-xs text-white/55">
-		                              #{index + 1} · {product.brand || "No brand"} · {normalizeProductCategory(product.category)}
-		                            </p>
-		                          </div>
-		                          <div className="col-span-2 h-2 rounded-full bg-white/15 sm:col-span-1">
-		                            <div
-		                              className="h-full rounded-full bg-[color:var(--sage-soft)]"
-		                              style={{ width: `${topProductMaxUnits ? Math.max((product.unitsSold / topProductMaxUnits) * 100, 8) : 0}%` }}
-		                            />
-		                          </div>
-		                          <span className="justify-self-end rounded-full bg-white/10 px-3 py-1 text-xs text-[color:var(--sand)] sm:justify-self-auto">
-		                            {product.unitsSold} sold
-		                          </span>
-		                        </article>
-		                      ))
-		                    ) : (
-		                      <div className="rounded-lg border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white/70">
-		                        <p>No product sales saved yet.</p>
-		                        <p className="mt-1 text-[color:var(--sand)]">Add units sold in Product Bank to see top products.</p>
-		                      </div>
-		                    )}
-		                  </div>
-		                </Panel>
-	                ) : null}
-	              </div>
-	              ) : null}
+		              </div>
+		              ) : null}
 
               {activeView === "scripts" ? (
                 <div className="order-2">
