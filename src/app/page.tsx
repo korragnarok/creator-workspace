@@ -499,6 +499,27 @@ export default function Home() {
 	      ...Array.from({ length: daysInMonth }, (_, index) => new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), index + 1)),
 	    ];
 	  }, [calendarMonth]);
+	  const salesTrend = useMemo(() => {
+	    const days = Array.from({ length: 30 }, (_, index) => {
+	      const date = addDays(new Date(), index - 29);
+	      const dateKey = getDateKey(date);
+	      return {
+	        date,
+	        dateKey,
+	        units: data.unitSales[dateKey] ?? 0,
+	      };
+	    });
+	    const maxUnits = Math.max(...days.map((day) => day.units), 1);
+	    const points = days
+	      .map((day, index) => {
+	        const x = (index / 29) * 100;
+	        const y = 88 - (day.units / maxUnits) * 72;
+	        return `${x.toFixed(2)},${y.toFixed(2)}`;
+	      })
+	      .join(" ");
+	    const total = days.reduce((sum, day) => sum + day.units, 0);
+	    return { days, maxUnits, points, total };
+	  }, [data.unitSales]);
 
   function resetForm() {
     setEditingId(null);
@@ -1565,34 +1586,54 @@ export default function Home() {
 	                  </button>
 	                </Panel>
 
-		                {activeView === "home" ? (
-		                <Panel className="!border-[#d9a9a5] !bg-[#f1dfdc]">
-		                  <SectionHeader title="Recent Scripts" count={filtered.scripts.length} actionLabel="+ New Script" onAction={() => startAdd("script")} />
-	                  <div className="space-y-3">
-	                    {filtered.scripts.length ? (
-	                      filtered.scripts.slice(0, 4).map((script) => (
-	                        <article key={script.id} className="flex gap-3 rounded-lg border border-[#d9a9a5] bg-white/70 p-3">
-                          <IconSlot tone="neutral" />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold">{script.title}</p>
-                            <p className="text-xs text-[color:var(--muted)]">{script.product} · {script.status}</p>
-                          </div>
-                          <div className="hidden shrink-0 gap-2 text-xs sm:flex">
-                            <button className="text-[color:var(--sage)]" onClick={() => startEdit("script", script.id)} type="button">
-                              Edit
-                            </button>
-                            <button className="text-[color:var(--rose-deep)]" onClick={() => deleteItem("script", script.id)} type="button">
-                              Delete
-                            </button>
-                          </div>
-                        </article>
-                      ))
-                    ) : (
-                      <EmptyState label="No scripts saved yet." action="Create a script draft when you have a video idea." />
-                    )}
-                  </div>
-                </Panel>
-                ) : null}
+			                {activeView === "home" ? (
+			                <Panel className="!border-[#d9a9a5] !bg-[#f1dfdc]">
+			                  <div className="mb-4 flex items-start justify-between gap-3">
+			                    <div>
+			                      <h2 className="text-lg font-semibold">Units Sold</h2>
+			                      <p className="text-sm text-[color:var(--muted)]">Past 30 days</p>
+			                    </div>
+			                    <button
+			                      className="rounded-lg bg-white/70 px-3 py-1.5 text-sm font-semibold text-[color:var(--rose-deep)]"
+			                      onClick={() => openShortcut("calendar")}
+			                      type="button"
+			                    >
+			                      Calendar
+			                    </button>
+			                  </div>
+			                  <div className="rounded-xl border border-[#d9a9a5] bg-white/65 p-3">
+			                    <div className="flex items-end justify-between gap-3">
+			                      <div>
+			                        <p className="text-3xl font-semibold">{salesTrend.total}</p>
+			                        <p className="text-xs text-[color:var(--muted)]">total units</p>
+			                      </div>
+			                      <p className="text-xs text-[color:var(--sage)]">Peak day: {salesTrend.maxUnits}</p>
+			                    </div>
+			                    <svg aria-label="Units sold over the past 30 days" className="mt-4 h-32 w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+			                      <line stroke="#ead5d1" strokeWidth="1" x1="0" x2="100" y1="88" y2="88" />
+			                      <line stroke="#ead5d1" strokeWidth="1" x1="0" x2="100" y1="52" y2="52" />
+			                      <line stroke="#ead5d1" strokeWidth="1" x1="0" x2="100" y1="16" y2="16" />
+			                      <polyline fill="none" points={salesTrend.points} stroke="#a45166" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+			                      {salesTrend.days.map((day, index) =>
+			                        day.units ? (
+			                          <circle
+			                            key={day.dateKey}
+			                            cx={(index / 29) * 100}
+			                            cy={88 - (day.units / salesTrend.maxUnits) * 72}
+			                            fill="#a45166"
+			                            r="1.8"
+			                            vectorEffect="non-scaling-stroke"
+			                          />
+			                        ) : null,
+			                      )}
+			                    </svg>
+			                    <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wide text-[color:var(--muted)]">
+			                      <span>{salesTrend.days[0].date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+			                      <span>{salesTrend.days[29].date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+			                    </div>
+			                  </div>
+			                </Panel>
+			                ) : null}
               </div>
               ) : null}
 
