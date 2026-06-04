@@ -132,6 +132,7 @@ function EmptyState({ label, action }: { label: string; action: string }) {
 
 export default function Home() {
   const storageReady = useRef(false);
+  const formPanelRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<WorkspaceData>(emptyData);
   const [activeView, setActiveView] = useState<(typeof navItems)[number]["view"]>("home");
   const [activeForm, setActiveForm] = useState<ItemType>("task");
@@ -234,6 +235,9 @@ export default function Home() {
   function startAdd(type: ItemType) {
     resetForm();
     setActiveForm(type);
+    window.setTimeout(() => {
+      formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   }
 
   function startEdit(type: ItemType, id: string) {
@@ -383,15 +387,24 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[color:var(--background)] text-[color:var(--foreground)]">
+    <main className="min-h-screen overflow-x-hidden bg-[color:var(--background)] pb-24 text-[color:var(--foreground)] lg:pb-0">
       <div className="grid min-h-screen lg:grid-cols-[242px_1fr]">
-        <aside className="border-b border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-5 lg:border-b-0 lg:border-r">
-          <div className="px-2">
-            <p className="font-[family-name:var(--font-heading)] text-4xl font-bold leading-none">creator</p>
-            <p className="mt-1 text-2xl text-[color:var(--clay)]">workspace</p>
+        <aside className="bg-[color:var(--paper)] px-6 py-7 lg:border-r lg:border-[color:var(--line)] lg:px-4 lg:py-5">
+          <div className="flex items-start justify-between gap-4 px-0 lg:block lg:px-2">
+            <div>
+              <p className="font-[family-name:var(--font-heading)] text-4xl font-bold leading-none">creator</p>
+              <p className="mt-1 text-2xl text-[color:var(--clay)]">workspace</p>
+            </div>
+            <button
+              className="grid size-11 place-items-center rounded-full border border-[color:var(--line)] bg-white/70 lg:hidden"
+              type="button"
+              aria-label="Notifications"
+            >
+              <span className="size-4 rounded-sm border border-current opacity-70" />
+            </button>
           </div>
 
-          <nav className="mt-8 flex max-w-full gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+          <nav className="mt-8 hidden max-w-full gap-2 overflow-x-auto pb-1 lg:flex lg:flex-col lg:overflow-visible lg:pb-0">
             {navItems.map((item) => (
               <button
                 key={item.label}
@@ -460,25 +473,32 @@ export default function Home() {
             </div>
           </header>
 
-          <div className="grid gap-5 px-4 py-5 sm:px-8 2xl:grid-cols-[1fr_350px]">
-            <div className="space-y-5">
-              <section>
-                <h1 className="max-w-4xl break-words font-[family-name:var(--font-heading)] text-3xl font-bold leading-tight sm:text-5xl">
-                  welcome back, Kourtney
-                </h1>
-                <p className="mt-2 text-lg">
-                  Let&apos;s <span className="font-semibold text-[color:var(--rose-deep)]">create</span>, plan, and stay consistent.
-                </p>
+          <div className="grid gap-5 px-4 py-2 sm:px-8 sm:py-5 2xl:grid-cols-[1fr_350px]">
+            <div className="flex flex-col gap-5">
+              <section className="grid grid-cols-[minmax(0,1fr)_minmax(142px,0.95fr)] items-center gap-4 sm:block">
+                <div>
+                  <h1 className="max-w-4xl break-words font-[family-name:var(--font-heading)] text-3xl font-bold leading-tight sm:text-5xl">
+                    welcome back, Kourtney
+                  </h1>
+                  <p className="mt-4 text-lg leading-8 sm:mt-2">
+                    Let&apos;s <span className="font-semibold text-[color:var(--rose-deep)]">create</span>, plan, and stay consistent.
+                  </p>
+                </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="min-h-40 rounded-2xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#8c8d78,#d8b4a9)] p-5 text-white shadow-sm sm:hidden">
+                  <p className="max-w-28 text-2xl leading-snug">small steps create big content.</p>
+                  <div className="mt-5 h-12 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
+                </div>
+
+                <div className="col-span-2 mt-5 grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
                   {metrics.map((metric) => (
-                    <article key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-4 shadow-sm">
-                      <div className="flex items-center gap-3">
+                    <article key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 shadow-sm sm:p-4">
+                      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <IconSlot tone={metric.tone} />
-                        <div>
-                          <p className="text-sm text-[color:var(--muted)]">{metric.label}</p>
-                          <p className="text-3xl font-semibold">{metric.value}</p>
-                          <p className="text-sm text-[color:var(--sage)]">{metric.note}</p>
+                        <div className="min-w-0">
+                          <p className="text-xs leading-4 text-[color:var(--muted)] sm:text-sm">{metric.label}</p>
+                          <p className="text-2xl font-semibold sm:text-3xl">{metric.value}</p>
+                          <p className="text-xs leading-4 text-[color:var(--sage)] sm:text-sm">{metric.note}</p>
                         </div>
                       </div>
                     </article>
@@ -486,7 +506,7 @@ export default function Home() {
                 </div>
               </section>
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div ref={formPanelRef} className="order-4 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <Panel>
                   <SectionHeader title={editingId ? `Edit ${formTitles[activeForm].replace("Add ", "").replace("Save a ", "")}` : formTitles[activeForm]} />
                   <form className="space-y-3" onSubmit={handleSubmit}>
@@ -600,13 +620,13 @@ export default function Home() {
                   </form>
                 </Panel>
 
-                <section className="min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#8c8d78,#d8b4a9)] p-7 text-white shadow-sm">
+                <section className="hidden min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#8c8d78,#d8b4a9)] p-7 text-white shadow-sm sm:block">
                   <p className="max-w-48 text-3xl leading-snug">small steps create big content.</p>
                   <div className="mt-8 h-24 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
                 </section>
               </div>
 
-              <div className="grid gap-5 xl:grid-cols-2">
+              <div className="order-2 grid gap-5 xl:grid-cols-2">
                 <Panel>
                   <SectionHeader title="Today's Tasks" count={filtered.tasks.length} />
                   <div className="space-y-2">
@@ -623,10 +643,10 @@ export default function Home() {
                             {task.title}
                           </span>
                           <span className="rounded-full bg-[color:var(--cream)] px-3 py-1 text-xs text-[color:var(--rose-deep)]">{task.status}</span>
-                          <button className="text-xs text-[color:var(--sage)]" onClick={() => startEdit("task", task.id)} type="button">
+                          <button className="hidden text-xs text-[color:var(--sage)] sm:inline" onClick={() => startEdit("task", task.id)} type="button">
                             Edit
                           </button>
-                          <button className="text-xs text-[color:var(--rose-deep)]" onClick={() => deleteItem("task", task.id)} type="button">
+                          <button className="hidden text-xs text-[color:var(--rose-deep)] sm:inline" onClick={() => deleteItem("task", task.id)} type="button">
                             Delete
                           </button>
                         </div>
@@ -635,6 +655,13 @@ export default function Home() {
                       <EmptyState label="No tasks saved yet." action="Add a task to start planning today." />
                     )}
                   </div>
+                  <button
+                    className="mt-3 flex h-12 w-full items-center justify-center rounded-lg bg-[color:var(--sage)] text-base font-semibold text-white"
+                    onClick={() => startAdd("task")}
+                    type="button"
+                  >
+                    + New Task
+                  </button>
                 </Panel>
 
                 <Panel>
@@ -648,7 +675,7 @@ export default function Home() {
                             <p className="truncate text-sm font-semibold">{script.title}</p>
                             <p className="text-xs text-[color:var(--muted)]">{script.product} · {script.status}</p>
                           </div>
-                          <div className="flex shrink-0 gap-2 text-xs">
+                          <div className="hidden shrink-0 gap-2 text-xs sm:flex">
                             <button className="text-[color:var(--sage)]" onClick={() => startEdit("script", script.id)} type="button">
                               Edit
                             </button>
@@ -665,7 +692,7 @@ export default function Home() {
                 </Panel>
               </div>
 
-              <div className="grid gap-5 xl:grid-cols-2">
+              <div className="order-3 grid gap-5 xl:grid-cols-2">
                 <Panel>
                   <SectionHeader title="Recent Hooks" count={filtered.hooks.length} />
                   <div className="space-y-3">
@@ -675,10 +702,10 @@ export default function Home() {
                           <IconSlot tone="sage" />
                           <p className="min-w-0 flex-1 truncate text-sm">{hook.text}</p>
                           <span className="rounded-full bg-white/50 px-3 py-1 text-xs">{hook.tag}</span>
-                          <button className="text-xs text-[color:var(--sage)]" onClick={() => startEdit("hook", hook.id)} type="button">
+                          <button className="hidden text-xs text-[color:var(--sage)] sm:inline" onClick={() => startEdit("hook", hook.id)} type="button">
                             Edit
                           </button>
-                          <button className="text-xs text-[color:var(--rose-deep)]" onClick={() => deleteItem("hook", hook.id)} type="button">
+                          <button className="hidden text-xs text-[color:var(--rose-deep)] sm:inline" onClick={() => deleteItem("hook", hook.id)} type="button">
                             Delete
                           </button>
                         </div>
@@ -700,7 +727,7 @@ export default function Home() {
                             <p className="truncate text-sm font-semibold">{product.name}</p>
                             <p className="text-xs text-[color:var(--muted)]">{product.category} · {product.status}</p>
                           </div>
-                          <div className="flex shrink-0 gap-2 text-xs">
+                          <div className="hidden shrink-0 gap-2 text-xs sm:flex">
                             {product.link ? (
                               <a className="text-[color:var(--sage)]" href={product.link} rel="noreferrer" target="_blank">
                                 Open
@@ -723,7 +750,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-5">
+            <div className="hidden space-y-5 lg:block">
               <Panel>
                 <h2 className="mb-4 text-lg font-semibold">Quick Actions</h2>
                 <div className="space-y-3">
@@ -760,6 +787,21 @@ export default function Home() {
           </div>
         </section>
       </div>
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[color:var(--line)] bg-[color:var(--paper)]/95 px-2 py-2 shadow-[0_-8px_30px_rgba(47,42,37,0.08)] backdrop-blur lg:hidden">
+        {navItems.map((item) => (
+          <button
+            key={item.label}
+            className={`flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1 text-[11px] ${
+              activeView === item.view ? "text-[color:var(--rose-deep)]" : "text-[color:var(--muted)]"
+            }`}
+            onClick={() => setActiveView(item.view)}
+            type="button"
+          >
+            <IconSlot tone={activeView === item.view ? "rose" : "neutral"} />
+            <span className="w-full truncate text-center">{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }
