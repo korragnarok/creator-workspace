@@ -1,269 +1,281 @@
-import {
-  Archive,
-  BadgeCheck,
-  CalendarCheck,
-  ClipboardList,
-  FileText,
-  LayoutDashboard,
-  Package,
-  Plus,
-  Search,
-  Sparkles,
-  Video,
-} from "lucide-react";
+const navItems = ["Home", "Tasks", "Hook Bank", "Product Bank", "Script Vault"];
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, active: true },
-  { label: "Daily Todo", icon: CalendarCheck },
-  { label: "Hook Bank", icon: Sparkles },
-  { label: "Product Bank", icon: Package },
-  { label: "Script Vault", icon: FileText },
+const quickAdds = ["New Task", "New Hook", "New Product", "New Script"];
+
+const metrics = [
+  { label: "tasks today", value: "6", note: "2 completed", tone: "rose" },
+  { label: "hooks saved", value: "42", note: "this week", tone: "sage" },
+  { label: "products saved", value: "18", note: "total", tone: "clay" },
+  { label: "scripts saved", value: "27", note: "total", tone: "sand" },
 ];
 
 const tasks = [
-  {
-    title: "Film intro options for serum bundle",
-    tag: "Video",
-    status: "Doing",
-    time: "Today",
-  },
-  {
-    title: "Shortlist five hooks for kitchen gadget",
-    tag: "Hooks",
-    status: "Next",
-    time: "Today",
-  },
-  {
-    title: "Update product notes after brand call",
-    tag: "Products",
-    status: "Later",
-    time: "Tomorrow",
-  },
-];
-
-const videos = [
-  { title: "3 reasons this desk lamp is everywhere", views: "128K", saves: "4.8K" },
-  { title: "GRWM with the travel steamer", views: "94K", saves: "2.1K" },
-  { title: "Tiny kitchen upgrade under $20", views: "61K", saves: "1.7K" },
-];
-
-const products = [
-  { name: "Foldable travel steamer", status: "Filmed", angle: "Pack with me" },
-  { name: "Glass skin serum set", status: "Script ready", angle: "Before makeup" },
-  { name: "Cordless desk lamp", status: "Researching", angle: "Apartment upgrade" },
-];
-
-const hooks = [
-  "I did not expect this to solve my tiny apartment problem.",
-  "This looks boring until you see what it does in ten seconds.",
-  "Creators are missing this one detail before filming product videos.",
+  { title: "Film TikTok video", status: "Done", complete: true },
+  { title: "Edit product review", status: "In Progress" },
+  { title: "Post new video", status: "To Do" },
+  { title: "Go live at 6pm", status: "To Do" },
+  { title: "Follow up with brand", status: "To Do" },
 ];
 
 const scripts = [
-  { title: "Soft sell skincare demo", status: "Ready", product: "Glass skin serum set" },
-  { title: "Problem-solution desk setup", status: "Draft", product: "Cordless desk lamp" },
-  { title: "Travel bag packing sequence", status: "Filmed", product: "Foldable travel steamer" },
+  { title: "Morning skincare routine", category: "Skincare Product", date: "May 12" },
+  { title: "3 reasons this blender is a must", category: "Kitchen Finds", date: "May 11" },
+  { title: "What I wish I knew sooner", category: "Personal Story", date: "May 10" },
 ];
 
-function StatusPill({ children }: { children: React.ReactNode }) {
+const hooks = [
+  { text: "You won't believe what happened when...", tag: "Storytime" },
+  { text: "This changed the way I...", tag: "Problem/Solution" },
+  { text: "I was today years old when I found out...", tag: "Curiosity" },
+];
+
+const products = [
+  { name: "Pink Heatless Curl Set", category: "Beauty", score: "15%" },
+  { name: "Stanley Quencher 40oz", category: "Drinkware", score: "10%" },
+  { name: "Cloud Slides", category: "Fashion", score: "12%" },
+];
+
+const actions = [
+  { label: "Add New Task", tone: "rose" },
+  { label: "Save a New Hook", tone: "sage" },
+  { label: "Add New Product", tone: "clay" },
+  { label: "Create New Script", tone: "sand" },
+];
+
+function IconSlot({ tone = "neutral" }: { tone?: "neutral" | "rose" | "sage" | "clay" | "sand" }) {
+  const toneClasses = {
+    neutral: "border-[color:var(--line)] bg-white/70",
+    rose: "border-[color:var(--rose)] bg-[color:var(--rose)]",
+    sage: "border-[color:var(--sage-soft)] bg-[color:var(--sage-soft)]",
+    clay: "border-[color:var(--rose-deep)] bg-[color:var(--rose-deep)] text-white",
+    sand: "border-[color:var(--sand)] bg-[color:var(--sand)]",
+  };
+
   return (
-    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-      {children}
+    <span
+      aria-label="Icon placeholder"
+      className={`grid size-9 shrink-0 place-items-center rounded-lg border ${toneClasses[tone]}`}
+    >
+      <span className="size-3 rounded-sm border border-current opacity-70" />
     </span>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <div className="mb-4 flex items-center justify-between">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <button className="text-sm text-[color:var(--sage)]" type="button">
+        View all
+      </button>
+    </div>
+  );
+}
+
+function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <section className={`rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-4 shadow-sm ${className}`}>
+      {children}
+    </section>
   );
 }
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f6f5f2] text-slate-950">
-      <div className="grid min-h-screen lg:grid-cols-[248px_1fr]">
-        <aside className="min-w-0 overflow-hidden border-b border-slate-200 bg-white px-4 py-5 lg:border-b-0 lg:border-r">
-          <div className="flex items-center gap-3 px-2">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-slate-950 text-white">
-              <Archive size={20} aria-hidden="true" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Creator Desk</p>
-              <p className="text-xs text-slate-500">TikTok Shop workspace</p>
+    <main className="min-h-screen overflow-x-hidden bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <div className="grid min-h-screen lg:grid-cols-[242px_1fr]">
+        <aside className="border-b border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-5 lg:border-b-0 lg:border-r">
+          <div className="px-2">
+            <p className="font-[family-name:var(--font-heading)] text-4xl font-bold leading-none">creator</p>
+            <p className="mt-1 text-2xl text-[color:var(--clay)]">workspace</p>
+          </div>
+
+          <nav className="mt-8 flex max-w-full gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+            {navItems.map((item, index) => (
+              <a
+                key={item}
+                href="#"
+                className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition ${
+                  index === 0
+                    ? "bg-[color:var(--rose)] text-[color:var(--foreground)]"
+                    : "text-[color:var(--muted)] hover:bg-[color:var(--cream)] hover:text-[color:var(--foreground)]"
+                }`}
+              >
+                <IconSlot tone="neutral" />
+                {item}
+              </a>
+            ))}
+          </nav>
+
+          <div className="mt-8 hidden border-t border-[color:var(--line)] pt-5 lg:block">
+            <p className="px-3 text-sm text-[color:var(--muted)]">Quick Add</p>
+            <div className="mt-3 space-y-1">
+              {quickAdds.map((item) => (
+                <button
+                  key={item}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--muted)] transition hover:bg-[color:var(--cream)]"
+                  type="button"
+                >
+                  <IconSlot tone="neutral" />
+                  {item}
+                </button>
+              ))}
             </div>
           </div>
 
-          <nav className="mt-7 flex max-w-full gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <a
-                  key={item.label}
-                  href="#"
-                  className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                    item.active
-                      ? "bg-slate-950 text-white"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                  }`}
-                >
-                  <Icon size={18} aria-hidden="true" />
-                  {item.label}
-                </a>
-              );
-            })}
-          </nav>
+          <div className="mt-10 hidden rounded-xl border border-[color:var(--line)] bg-white/70 p-3 lg:flex lg:items-center lg:gap-3">
+            <div className="grid size-10 place-items-center rounded-full bg-[color:var(--sage)] text-white">K</div>
+            <div>
+              <p className="text-sm font-semibold">Kourtney</p>
+              <p className="text-xs text-[color:var(--muted)]">Creator</p>
+            </div>
+          </div>
         </aside>
 
-        <section className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">Wednesday workspace</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-normal sm:text-3xl">
-                Organize today&apos;s creator work.
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="flex size-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950"
-                aria-label="Search workspace"
-                type="button"
-              >
-                <Search size={18} aria-hidden="true" />
+        <section className="min-w-0">
+          <header className="hidden items-center justify-between gap-3 border-b border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3 sm:flex sm:px-8">
+            <div className="hidden text-sm text-[color:var(--muted)] sm:block">Daily creator desk</div>
+            <div className="ml-auto flex items-center gap-3">
+              <label className="flex h-10 w-full min-w-0 max-w-xs items-center gap-2 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm text-[color:var(--muted)] sm:w-80">
+                <span className="size-3 rounded-sm border border-current opacity-60" aria-label="Icon placeholder" />
+                <span>Search anything...</span>
+              </label>
+              <button className="grid size-10 place-items-center rounded-lg border border-[color:var(--line)] bg-white/80" type="button">
+                <IconSlot tone="neutral" />
               </button>
-              <button
-                className="flex h-10 items-center gap-2 rounded-lg bg-rose-600 px-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700"
-                type="button"
-              >
-                <Plus size={18} aria-hidden="true" />
-                Add item
-              </button>
+              <div className="grid size-10 place-items-center rounded-full bg-[color:var(--sage)] text-white">K</div>
             </div>
           </header>
 
-          <div className="grid gap-4 py-5 md:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-sm text-slate-500">Open tasks</p>
-              <p className="mt-2 text-3xl font-semibold">8</p>
-              <p className="mt-2 text-sm text-slate-500">3 planned for today</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-sm text-slate-500">Hooks saved</p>
-              <p className="mt-2 text-3xl font-semibold">42</p>
-              <p className="mt-2 text-sm text-slate-500">6 marked as favorites</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-sm text-slate-500">Products active</p>
-              <p className="mt-2 text-3xl font-semibold">14</p>
-              <p className="mt-2 text-sm text-slate-500">5 ready for content</p>
-            </div>
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+          <div className="grid gap-5 px-4 py-5 sm:px-8 2xl:grid-cols-[1fr_350px]">
             <div className="space-y-5">
-              <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <ClipboardList size={18} className="text-rose-600" aria-hidden="true" />
-                    <h2 className="text-base font-semibold">Daily Todo</h2>
+              <section className="grid gap-5 2xl:grid-cols-[1fr_350px]">
+                <div>
+                  <h1 className="max-w-4xl break-words font-[family-name:var(--font-heading)] text-3xl font-bold leading-tight sm:text-5xl">
+                    welcome back, Kourtney
+                  </h1>
+                  <p className="mt-2 text-lg">
+                    Let&apos;s <span className="font-semibold text-[color:var(--rose-deep)]">create</span>, plan, and stay consistent.
+                  </p>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {metrics.map((metric) => (
+                      <article key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-4 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <IconSlot tone={metric.tone as "rose" | "sage" | "clay" | "sand"} />
+                          <div>
+                            <p className="text-sm text-[color:var(--muted)]">{metric.label}</p>
+                            <p className="text-3xl font-semibold">{metric.value}</p>
+                            <p className="text-sm text-[color:var(--sage)]">{metric.note}</p>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                  <StatusPill>Today</StatusPill>
                 </div>
-                <div className="divide-y divide-slate-100">
-                  {tasks.map((task) => (
-                    <div key={task.title} className="grid gap-3 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                      <div>
-                        <p className="font-medium">{task.title}</p>
-                        <p className="mt-1 text-sm text-slate-500">{task.tag} · {task.time}</p>
-                      </div>
-                      <StatusPill>{task.status}</StatusPill>
-                    </div>
-                  ))}
+
+                <div className="min-h-52 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#8c8d78,#d8b4a9)] p-7 text-white shadow-sm">
+                  <p className="max-w-40 text-3xl leading-snug">small steps create big content.</p>
+                  <div className="mt-8 h-20 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
                 </div>
               </section>
 
-              <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Video size={18} className="text-rose-600" aria-hidden="true" />
-                    <h2 className="text-base font-semibold">Top Performing Videos</h2>
-                  </div>
-                  <StatusPill>Manual</StatusPill>
-                </div>
-                <div className="grid gap-3 p-4 md:grid-cols-3">
-                  {videos.map((video) => (
-                    <article key={video.title} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                      <p className="min-h-12 text-sm font-medium leading-6">{video.title}</p>
-                      <div className="mt-4 flex items-center justify-between text-sm">
-                        <span className="font-semibold text-slate-950">{video.views}</span>
-                        <span className="text-slate-500">{video.saves} saves</span>
+              <div className="grid gap-5 xl:grid-cols-2">
+                <Panel>
+                  <SectionHeader title="Today's Tasks" />
+                  <div className="space-y-2">
+                    {tasks.map((task) => (
+                      <div key={task.title} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/60 px-3 py-2">
+                        <span className={`size-4 rounded border ${task.complete ? "border-[color:var(--sage)] bg-[color:var(--sage)]" : "border-[color:var(--muted)]"}`} />
+                        <span className={`flex-1 text-sm ${task.complete ? "text-[color:var(--muted)] line-through" : ""}`}>{task.title}</span>
+                        <span className="rounded-full bg-[color:var(--cream)] px-3 py-1 text-xs text-[color:var(--rose-deep)]">{task.status}</span>
                       </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
+                    ))}
+                  </div>
+                  <button className="mt-3 flex h-11 w-full items-center justify-center rounded-lg bg-[color:var(--sage)] text-sm font-semibold text-white" type="button">
+                    + New Task
+                  </button>
+                </Panel>
 
-              <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-                  <Sparkles size={18} className="text-rose-600" aria-hidden="true" />
-                  <h2 className="text-base font-semibold">Hook Bank</h2>
-                </div>
-                <div className="space-y-2 p-4">
-                  {hooks.map((hook) => (
-                    <p key={hook} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm leading-6">
-                      {hook}
-                    </p>
-                  ))}
-                </div>
-              </section>
+                <Panel>
+                  <SectionHeader title="Recent Scripts" />
+                  <div className="space-y-3">
+                    {scripts.map((script) => (
+                      <article key={script.title} className="flex gap-3 rounded-lg border border-[color:var(--line)] bg-[color:var(--cream)]/60 p-3">
+                        <IconSlot tone="neutral" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{script.title}</p>
+                          <p className="text-xs text-[color:var(--muted)]">{script.category}</p>
+                        </div>
+                        <p className="text-xs text-[color:var(--muted)]">{script.date}</p>
+                      </article>
+                    ))}
+                  </div>
+                  <button className="mt-3 flex h-11 w-full items-center justify-center rounded-lg bg-[color:var(--rose)] text-sm font-semibold" type="button">
+                    + New Script
+                  </button>
+                </Panel>
+              </div>
+
+              <div className="grid gap-5 xl:grid-cols-2">
+                <Panel>
+                  <SectionHeader title="Recent Hooks" />
+                  <div className="space-y-3">
+                    {hooks.map((hook) => (
+                      <div key={hook.text} className="flex items-center gap-3 rounded-lg bg-[color:var(--sage-soft)] px-3 py-2">
+                        <IconSlot tone="sage" />
+                        <p className="min-w-0 flex-1 truncate text-sm">{hook.text}</p>
+                        <span className="rounded-full bg-white/50 px-3 py-1 text-xs">{hook.tag}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel>
+                  <SectionHeader title="Recent Products" />
+                  <div className="space-y-2">
+                    {products.map((product) => (
+                      <article key={product.name} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/60 p-2">
+                        <IconSlot tone="clay" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{product.name}</p>
+                          <p className="text-xs text-[color:var(--muted)]">{product.category}</p>
+                        </div>
+                        <span className="rounded-full bg-[color:var(--cream)] px-3 py-1 text-xs">{product.score}</span>
+                      </article>
+                    ))}
+                  </div>
+                </Panel>
+              </div>
             </div>
 
             <div className="space-y-5">
-              <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Package size={18} className="text-rose-600" aria-hidden="true" />
-                    <h2 className="text-base font-semibold">Recent Products</h2>
-                  </div>
-                  <StatusPill>3 new</StatusPill>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {products.map((product) => (
-                    <article key={product.name} className="px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium">{product.name}</p>
-                          <p className="mt-1 text-sm text-slate-500">{product.angle}</p>
-                        </div>
-                        <StatusPill>{product.status}</StatusPill>
-                      </div>
-                    </article>
+              <Panel>
+                <h2 className="mb-4 text-lg font-semibold">Quick Actions</h2>
+                <div className="space-y-3">
+                  {actions.map((action) => (
+                    <button
+                      key={action.label}
+                      className={`flex h-14 w-full items-center gap-3 rounded-lg px-4 text-left text-sm font-semibold ${
+                        action.tone === "clay"
+                          ? "bg-[color:var(--rose-deep)] text-white"
+                          : action.tone === "sage"
+                            ? "bg-[color:var(--sage-soft)]"
+                            : action.tone === "sand"
+                              ? "bg-[color:var(--sand)]"
+                              : "bg-[color:var(--rose)]"
+                      }`}
+                      type="button"
+                    >
+                      <IconSlot tone={action.tone as "rose" | "sage" | "clay" | "sand"} />
+                      {action.label}
+                    </button>
                   ))}
                 </div>
-              </section>
+              </Panel>
 
-              <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-                  <FileText size={18} className="text-rose-600" aria-hidden="true" />
-                  <h2 className="text-base font-semibold">Script Vault</h2>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {scripts.map((script) => (
-                    <article key={script.title} className="px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium">{script.title}</p>
-                          <p className="mt-1 text-sm text-slate-500">{script.product}</p>
-                        </div>
-                        <StatusPill>{script.status}</StatusPill>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-lg border border-slate-200 bg-slate-950 p-4 text-white">
-                <div className="flex items-center gap-2">
-                  <BadgeCheck size={18} className="text-rose-300" aria-hidden="true" />
-                  <h2 className="text-base font-semibold">MVP scope</h2>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Local storage first, no AI, no Notion, no commission tracking, no sales analytics.
-                </p>
+              <section className="min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#bd8377,#e3c9b1)] p-8 text-white shadow-sm">
+                <p className="max-w-52 text-4xl italic leading-tight">consistency is your superpower.</p>
+                <div className="mt-8 h-24 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
               </section>
             </div>
           </div>
