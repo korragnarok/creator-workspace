@@ -499,7 +499,6 @@ export default function Home() {
 	      ...Array.from({ length: daysInMonth }, (_, index) => new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), index + 1)),
 	    ];
 	  }, [calendarMonth]);
-	  const selectedSalesUnits = data.unitSales[selectedSalesDate] ?? 0;
 
   function resetForm() {
     setEditingId(null);
@@ -1484,44 +1483,41 @@ export default function Home() {
 		                        const units = data.unitSales[dateKey] ?? 0;
 		                        const isSelected = dateKey === selectedSalesDate;
 		                        return (
-		                          <button
-		                            key={dateKey}
-		                            className={`aspect-square min-w-0 rounded-lg border p-1 text-left transition ${
-		                              isSelected
-		                                ? "border-[color:var(--sage)] bg-[color:var(--sage)] text-white"
-		                                : "border-[color:var(--line)] bg-white/70 text-[color:var(--foreground)]"
-		                            }`}
-		                            onClick={() => setSelectedSalesDate(dateKey)}
-		                            type="button"
-		                          >
-		                            <span className="block text-sm font-semibold">{day.getDate()}</span>
-		                            {units ? (
-		                              <span className={`mt-1 block truncate text-[10px] ${isSelected ? "text-white" : "text-[color:var(--rose-deep)]"}`}>
-		                                {units} sold
-		                              </span>
-		                            ) : null}
-		                          </button>
-		                        );
-		                      })}
-		                    </div>
-		                  </Panel>
-
-		                  <Panel className="mt-5">
-		                    <p className="text-sm text-[color:var(--sage)]">{readableDate(selectedSalesDate)}</p>
-		                    <h2 className="mt-1 text-xl font-semibold">Units Sold</h2>
-		                    <input
-		                      className="mt-4 h-12 w-full rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-lg outline-none focus:border-[color:var(--sage)]"
-		                      inputMode="numeric"
-		                      onChange={(event) => updateUnitSales(selectedSalesDate, event.target.value)}
-		                      placeholder="0"
-		                      value={selectedSalesUnits ? String(selectedSalesUnits) : ""}
-		                    />
-		                    <p className="mt-3 text-sm text-[color:var(--muted)]">
-		                      Dashboard units sold total: <span className="font-semibold text-[color:var(--foreground)]">{totalUnitsSold}</span>
-		                    </p>
-		                  </Panel>
-		                </div>
-		              ) : null}
+			                          <div
+			                            key={dateKey}
+			                            className={`aspect-square min-w-0 rounded-lg border p-1.5 text-left transition ${
+			                              isSelected
+			                                ? "border-[color:var(--sage)] bg-[color:var(--sage)] text-white"
+			                                : "border-[color:var(--line)] bg-white/70 text-[color:var(--foreground)]"
+			                            }`}
+			                            onClick={() => setSelectedSalesDate(dateKey)}
+			                          >
+			                            <label className="flex h-full min-w-0 flex-col">
+			                              <span className="block text-sm font-semibold">{day.getDate()}</span>
+			                              <input
+			                                aria-label={`${readableDate(dateKey)} units sold`}
+			                                className={`mt-auto h-7 min-w-0 rounded-md border px-1 text-center text-xs font-semibold outline-none ${
+			                                  isSelected
+			                                    ? "border-white/35 bg-white/20 text-white placeholder:text-white/60"
+			                                    : "border-[color:var(--line)] bg-[color:var(--paper)] text-[color:var(--rose-deep)] placeholder:text-[color:var(--muted)]"
+			                                }`}
+			                                inputMode="numeric"
+			                                onChange={(event) => updateUnitSales(dateKey, event.target.value)}
+			                                onFocus={() => setSelectedSalesDate(dateKey)}
+			                                placeholder="0"
+			                                value={units ? String(units) : ""}
+			                              />
+			                            </label>
+			                          </div>
+			                        );
+			                      })}
+			                    </div>
+			                    <p className="mt-4 text-sm text-[color:var(--muted)]">
+			                      Dashboard units sold total: <span className="font-semibold text-[color:var(--foreground)]">{totalUnitsSold}</span>
+			                    </p>
+			                  </Panel>
+			                </div>
+			              ) : null}
 
 			              {activeView === "home" ? (
 	              <div className="order-2 grid gap-5 xl:grid-cols-2">
