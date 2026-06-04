@@ -923,34 +923,34 @@ export default function Home() {
 		                    ))}
 		                  </div>
 
-			                  <Panel className="order-2 bg-[color:var(--foreground)] text-[color:var(--paper)]">
-		                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
-		                      <div>
-		                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--sage)]">Leaderboard</p>
-		                        <h2 className="mt-1 text-lg font-semibold">Top Products Sold</h2>
-		                      </div>
-		                      <span className="text-sm text-[color:var(--sand)]">{topProducts.length} ranked</span>
-		                    </div>
+				                  <Panel className="order-2 !bg-[#4f503f] !text-[#fffdf9]">
+			                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/20 pb-4">
+			                      <div>
+			                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e8d7c5]">Leaderboard</p>
+			                        <h2 className="mt-1 text-lg font-semibold text-white">Top Products Sold</h2>
+			                      </div>
+			                      <span className="text-sm text-[#f1dfcc]">{topProducts.length} ranked</span>
+			                    </div>
 		                    <div className="space-y-1">
 		                      {topProducts.length ? (
 		                        topProducts.map((product, index) => (
-		                          <article key={product.id} className="grid min-w-0 grid-cols-[auto_1fr] gap-3 border-b border-white/10 py-3 last:border-b-0 sm:grid-cols-[auto_1fr_minmax(96px,180px)_auto] sm:items-center">
-		                            <CategoryIcon category={product.category} />
-		                            <div className="min-w-0">
-		                              <p className="truncate text-sm font-semibold">{product.name}</p>
-		                              <p className="text-xs text-white/55">
-		                                #{index + 1} · {product.brand || "No brand"} · {normalizeProductCategory(product.category)}
-		                              </p>
-		                            </div>
-		                            <div className="col-span-2 h-2 rounded-full bg-white/15 sm:col-span-1">
-		                              <div
-		                                className="h-full rounded-full bg-[color:var(--sage-soft)]"
-		                                style={{ width: `${topProductMaxUnits ? Math.max((product.unitsSold / topProductMaxUnits) * 100, 8) : 0}%` }}
-		                              />
-		                            </div>
-		                            <span className="justify-self-end rounded-full bg-white/10 px-3 py-1 text-xs text-[color:var(--sand)] sm:justify-self-auto">
-		                              {product.unitsSold} sold
-		                            </span>
+			                          <article key={product.id} className="grid min-w-0 grid-cols-[auto_1fr] gap-3 border-b border-white/20 py-3 last:border-b-0 sm:grid-cols-[auto_1fr_minmax(96px,180px)_auto] sm:items-center">
+			                            <CategoryIcon category={product.category} />
+			                            <div className="min-w-0">
+			                              <p className="truncate text-sm font-semibold text-white">{product.name}</p>
+			                              <p className="text-xs text-[#ead8c5]">
+			                                #{index + 1} · {product.brand || "No brand"} · {normalizeProductCategory(product.category)}
+			                              </p>
+			                            </div>
+			                            <div className="col-span-2 h-2 rounded-full bg-white/25 sm:col-span-1">
+			                              <div
+			                                className="h-full rounded-full bg-[#f1dfcc]"
+			                                style={{ width: `${topProductMaxUnits ? Math.max((product.unitsSold / topProductMaxUnits) * 100, 8) : 0}%` }}
+			                              />
+			                            </div>
+			                            <span className="justify-self-end rounded-full bg-white/20 px-3 py-1 text-xs text-white sm:justify-self-auto">
+			                              {product.unitsSold} sold
+			                            </span>
 		                          </article>
 		                        ))
 		                      ) : (
