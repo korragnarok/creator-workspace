@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type ItemType = "task" | "hook" | "product" | "script";
+type ItemType = "task" | "hook" | "product" | "script" | "content";
 type ViewType = "home" | "tasks" | "hooks" | "products" | "scripts";
 
 type Task = {
@@ -26,6 +26,7 @@ type Product = {
   category: string;
   link: string;
   status: string;
+  unitsSold: number;
   createdAt: string;
 };
 
@@ -48,11 +49,25 @@ type DailyProduct = {
   createdAt: string;
 };
 
+type ContentItem = {
+  id: string;
+  productName: string;
+  brand: string;
+  script: string;
+  type: string;
+  views48: string;
+  gotSales: "Unknown" | "Yes" | "No";
+  datePosted: string;
+  sourceDailyProductId?: string;
+  createdAt: string;
+};
+
 type WorkspaceData = {
   tasks: Task[];
   hooks: Hook[];
   products: Product[];
   scripts: Script[];
+  content: ContentItem[];
   dailyProducts: Record<string, DailyProduct[]>;
 };
 
@@ -61,14 +76,34 @@ const emptyData: WorkspaceData = {
   hooks: [],
   products: [],
   scripts: [],
+  content: [],
   dailyProducts: {},
 };
 
 const storageKey = "creator-workspace-data";
 
+const contentTypes = [
+  "Talking-Head Review",
+  "Aesthetic B-Roll",
+  "Voiceover Demo",
+  "Problem/Solution",
+  "Storytime",
+  "Things I Wish I Bought Sooner",
+  "Comparison",
+  "Unboxing",
+  "First Impression",
+  "Before & After",
+  "Relatable Mom/Lifestyle Skit",
+  "Tutorial/How-To-Use",
+  "POV Style",
+  "ASMR",
+];
+
+const productCategories = ["Lifestyle", "Beauty", "Tech", "Outdoor", "Health", "Fashion"];
+
 const navItems = [
   { label: "Home", view: "home" },
-  { label: "Tasks", view: "tasks" },
+  { label: "Content", view: "tasks" },
   { label: "Hook Bank", view: "hooks" },
   { label: "Product Bank", view: "products" },
   { label: "Script Vault", view: "scripts" },
@@ -86,6 +121,7 @@ const typeToView: Record<ItemType, Exclude<ViewType, "home">> = {
   hook: "hooks",
   product: "products",
   script: "scripts",
+  content: "tasks",
 };
 
 const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
@@ -112,7 +148,6 @@ const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
 };
 
 const quickAdds: Array<{ label: string; type: ItemType; tone: "rose" | "sage" | "clay" | "sand" }> = [
-  { label: "Add Product", type: "product", tone: "rose" },
   { label: "New Hook", type: "hook", tone: "sage" },
   { label: "New Product", type: "product", tone: "clay" },
   { label: "New Script", type: "script", tone: "sand" },
@@ -123,6 +158,7 @@ const formTitles = {
   hook: "Save a New Hook",
   product: "Add New Product",
   script: "Create New Script",
+  content: "Add Content",
 };
 
 function makeId() {
@@ -130,7 +166,10 @@ function makeId() {
 }
 
 function getDateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function addDays(date: Date, days: number) {
@@ -155,6 +194,55 @@ function readableDate(dateKey: string) {
   });
 }
 
+function parseCount(value: string) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function normalizeProductCategory(category?: string) {
+  const match = productCategories.find((item) => item.toLowerCase() === category?.toLowerCase());
+  return match ?? "Lifestyle";
+}
+
+function normalizeWorkspaceData(saved: Partial<WorkspaceData>): WorkspaceData {
+  const normalized = {
+    ...emptyData,
+    ...saved,
+    content: saved.content ?? [],
+    dailyProducts: saved.dailyProducts ?? {},
+	    products: (saved.products ?? []).map((product) => ({
+	      ...product,
+	      brand: product.brand ?? "",
+	      category: normalizeProductCategory(product.category),
+	      unitsSold: product.unitsSold ?? 0,
+	    })),
+	  };
+
+  const today = getDateKey(new Date());
+  const yesterday = getDateKey(addDays(new Date(), -1));
+  const yesterdayProducts = normalized.dailyProducts[yesterday] ?? [];
+  const todayProducts = normalized.dailyProducts[today] ?? [];
+  const todayKeys = new Set(todayProducts.map((product) => `${product.productName}|${product.brand}`.toLowerCase()));
+  const carryOver = yesterdayProducts
+    .filter((product) => !product.done)
+    .filter((product) => !todayKeys.has(`${product.productName}|${product.brand}`.toLowerCase()))
+    .map((product) => ({
+      ...product,
+      id: makeId(),
+      done: false,
+      createdAt: new Date().toISOString(),
+    }));
+
+  if (carryOver.length) {
+    normalized.dailyProducts = {
+      ...normalized.dailyProducts,
+      [today]: [...todayProducts, ...carryOver],
+    };
+  }
+
+  return normalized;
+}
+
 function IconSlot({ tone = "neutral" }: { tone?: "neutral" | "rose" | "sage" | "clay" | "sand" }) {
   const toneClasses = {
     neutral: "border-[color:var(--line)] bg-white/70",
@@ -174,19 +262,51 @@ function IconSlot({ tone = "neutral" }: { tone?: "neutral" | "rose" | "sage" | "
   );
 }
 
+function CategoryIcon({ category }: { category: string }) {
+  const normalizedCategory = normalizeProductCategory(category);
+  const categoryIndex = productCategories.indexOf(normalizedCategory);
+  const tones = ["bg-[color:var(--sage-soft)]", "bg-[color:var(--rose)]", "bg-[color:var(--cream)]", "bg-[color:var(--sand)]", "bg-white/70", "bg-[color:var(--sage-soft)]"];
+
+  return (
+    <span
+      aria-label={`${normalizedCategory} icon placeholder`}
+      className={`grid size-11 shrink-0 place-items-center rounded-xl border border-[color:var(--line)] ${tones[categoryIndex]}`}
+    >
+      <span className="size-5 rounded-md border border-current opacity-60" />
+    </span>
+  );
+}
+
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-4 shadow-sm ${className}`}>
+    <section className={`min-w-0 overflow-hidden rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-4 shadow-sm ${className}`}>
       {children}
     </section>
   );
 }
 
-function SectionHeader({ title, count }: { title: string; count?: number }) {
+function SectionHeader({
+  title,
+  count,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  count?: number;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
       <h2 className="text-lg font-semibold">{title}</h2>
-      {typeof count === "number" ? <span className="text-sm text-[color:var(--sage)]">{count} saved</span> : null}
+      <div className="flex items-center gap-2">
+        {typeof count === "number" ? <span className="text-sm text-[color:var(--sage)]">{count} saved</span> : null}
+        {actionLabel && onAction ? (
+          <button className="rounded-lg bg-[color:var(--sage)] px-3 py-1.5 text-sm font-semibold text-white" onClick={onAction} type="button">
+            {actionLabel}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -217,9 +337,10 @@ export default function Home() {
   const [hookTag, setHookTag] = useState("");
   const [productName, setProductName] = useState("");
   const [productBrand, setProductBrand] = useState("");
-  const [productCategory, setProductCategory] = useState("");
+  const [productCategory, setProductCategory] = useState("Lifestyle");
   const [productLink, setProductLink] = useState("");
   const [productStatus, setProductStatus] = useState("Researching");
+  const [productUnitsSold, setProductUnitsSold] = useState("0");
   const [dailyProductName, setDailyProductName] = useState("");
   const [dailyProductBrand, setDailyProductBrand] = useState("");
   const [dailyProductLink, setDailyProductLink] = useState("");
@@ -236,7 +357,7 @@ export default function Home() {
       const saved = window.localStorage.getItem(storageKey);
       if (saved) {
         try {
-          setData({ ...emptyData, ...JSON.parse(saved) });
+          setData(normalizeWorkspaceData(JSON.parse(saved)));
         } catch {
           setData(emptyData);
         }
@@ -318,6 +439,11 @@ export default function Home() {
     }),
     [data, query],
   );
+  const topProducts = useMemo(
+    () => [...data.products].filter((product) => product.unitsSold > 0).sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 4),
+    [data.products],
+  );
+  const topProductMaxUnits = topProducts[0]?.unitsSold ?? 0;
 
   function resetForm() {
     setEditingId(null);
@@ -326,9 +452,10 @@ export default function Home() {
     setHookTag("");
     setProductName("");
     setProductBrand("");
-    setProductCategory("");
+    setProductCategory("Lifestyle");
     setProductLink("");
     setProductStatus("Researching");
+    setProductUnitsSold("0");
     setDailyProductName("");
     setDailyProductBrand("");
     setDailyProductLink("");
@@ -377,9 +504,10 @@ export default function Home() {
       const item = data.products.find((product) => product.id === id);
       setProductName(item?.name ?? "");
       setProductBrand(item?.brand ?? "");
-      setProductCategory(item?.category ?? "");
+      setProductCategory(normalizeProductCategory(item?.category));
       setProductLink(item?.link ?? "");
       setProductStatus(item?.status ?? "Researching");
+      setProductUnitsSold(String(item?.unitsSold ?? 0));
     }
     if (type === "script") {
       const item = data.scripts.find((script) => script.id === id);
@@ -426,9 +554,10 @@ export default function Home() {
                     ...product,
                     name: productName.trim(),
                     brand: productBrand.trim(),
-                    category: productCategory.trim() || "General",
+	                    category: normalizeProductCategory(productCategory),
                     link: productLink.trim(),
                     status: productStatus,
+                    unitsSold: parseCount(productUnitsSold),
                   }
                 : product,
             )
@@ -437,9 +566,10 @@ export default function Home() {
                 id: makeId(),
                 name: productName.trim(),
                 brand: productBrand.trim(),
-                category: productCategory.trim() || "General",
+	                category: normalizeProductCategory(productCategory),
                 link: productLink.trim(),
                 status: productStatus,
+                unitsSold: parseCount(productUnitsSold),
                 createdAt,
               },
               ...current.products,
@@ -502,9 +632,10 @@ export default function Home() {
                 id: makeId(),
                 name: dailyProductName.trim(),
                 brand: dailyProductBrand.trim(),
-                category: "Daily queue",
+	                category: "Lifestyle",
                 link: dailyProductLink.trim(),
                 status: "Planned",
+                unitsSold: 0,
                 createdAt,
               },
               ...current.products,
@@ -545,15 +676,46 @@ export default function Home() {
     setDailySaveScript(false);
   }
 
-  function updateDailyProduct(id: string, changes: Partial<DailyProduct>) {
+	  function updateDailyProduct(id: string, changes: Partial<DailyProduct>) {
+	    setData((current) => {
+	      const currentDailyProducts = current.dailyProducts[selectedDate] ?? [];
+	      const targetProduct = currentDailyProducts.find((product) => product.id === id);
+	      const nextDailyProducts = currentDailyProducts.map((product) => (product.id === id ? { ...product, ...changes } : product));
+	      const shouldCreateContent = changes.done && targetProduct && !current.content.some((item) => item.sourceDailyProductId === id);
+	      const nextContent =
+	        shouldCreateContent && targetProduct
+	          ? [
+	              {
+	                id: makeId(),
+	                productName: targetProduct.productName,
+	                brand: targetProduct.brand,
+	                script: targetProduct.script,
+	                type: "",
+	                views48: "",
+	                gotSales: "Unknown" as const,
+	                datePosted: getDateKey(new Date()),
+	                sourceDailyProductId: id,
+	                createdAt: new Date().toISOString(),
+	              },
+	              ...current.content,
+	            ]
+	          : current.content;
+
+	      return {
+	        ...current,
+	        content: nextContent,
+	        dailyProducts: {
+	          ...current.dailyProducts,
+	          [selectedDate]: nextDailyProducts,
+        },
+      };
+    });
+  }
+
+  function updateContentItem(id: string, changes: Partial<ContentItem>) {
     setData((current) => ({
       ...current,
-      dailyProducts: {
-        ...current.dailyProducts,
-        [selectedDate]: (current.dailyProducts[selectedDate] ?? []).map((product) =>
-          product.id === id ? { ...product, ...changes } : product,
-        ),
-      },
+      content: current.content.map((item) => (item.id === id ? { ...item, ...changes } : item)),
     }));
   }
 
@@ -598,27 +760,16 @@ export default function Home() {
     }));
   }
 
-  function deleteItem(type: ItemType, id: string) {
-    setData((current) => ({
-      ...current,
-      tasks: type === "task" ? current.tasks.filter((task) => task.id !== id) : current.tasks,
-      hooks: type === "hook" ? current.hooks.filter((hook) => hook.id !== id) : current.hooks,
-      products: type === "product" ? current.products.filter((product) => product.id !== id) : current.products,
-      scripts: type === "script" ? current.scripts.filter((script) => script.id !== id) : current.scripts,
-    }));
-  }
-
-  function cycleTaskStatus(id: string) {
-    setData((current) => ({
-      ...current,
-      tasks: current.tasks.map((task) => {
-        if (task.id !== id) return task;
-        if (task.status === "To Do") return { ...task, status: "In Progress" };
-        if (task.status === "In Progress") return { ...task, status: "Done" };
-        return { ...task, status: "To Do" };
-      }),
-    }));
-  }
+	  function deleteItem(type: ItemType, id: string) {
+	    setData((current) => ({
+	      ...current,
+	      tasks: type === "task" ? current.tasks.filter((task) => task.id !== id) : current.tasks,
+	      hooks: type === "hook" ? current.hooks.filter((hook) => hook.id !== id) : current.hooks,
+	      products: type === "product" ? current.products.filter((product) => product.id !== id) : current.products,
+	      scripts: type === "script" ? current.scripts.filter((script) => script.id !== id) : current.scripts,
+	      content: type === "content" ? current.content.filter((item) => item.id !== id) : current.content,
+	    }));
+	  }
 
   function clearAllData() {
     if (window.confirm("Clear all saved workspace data from this browser?")) {
@@ -714,10 +865,10 @@ export default function Home() {
             </div>
           </header>
 
-          <div className="grid gap-5 px-4 py-2 sm:px-8 sm:py-5 2xl:grid-cols-[1fr_350px]">
+	          <div className="grid max-w-full gap-5 overflow-hidden px-4 py-2 sm:px-8 sm:py-5 2xl:grid-cols-[1fr_350px]">
             <div className="flex flex-col gap-5">
               {activeView === "home" ? (
-              <section className="grid grid-cols-[minmax(0,1fr)_minmax(142px,0.95fr)] items-center gap-4 sm:block">
+	              <section className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(142px,0.95fr)] items-center gap-4 sm:block">
                 <div>
                   <h1 className="max-w-4xl break-words font-[family-name:var(--font-heading)] text-3xl font-bold leading-tight sm:text-5xl">
                     welcome back, Kourtney
@@ -732,9 +883,9 @@ export default function Home() {
                   <div className="mt-5 h-12 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
                 </div>
 
-                <div className="col-span-2 mt-5 grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
+	                <div className="col-span-2 mt-5 grid min-w-0 grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
                   {metrics.map((metric) => (
-                    <article key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 shadow-sm sm:p-4">
+	                    <article key={metric.label} className="min-w-0 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 shadow-sm sm:p-4">
                       <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <IconSlot tone={metric.tone} />
                         <div className="min-w-0">
@@ -758,8 +909,9 @@ export default function Home() {
               )}
 
               {activeView === "tasks" ? (
-                <div className="order-1 space-y-4">
-                  <div className="flex gap-2 overflow-x-auto pb-1">
+	                <div className="order-1 min-w-0 space-y-4">
+	                  <div className="max-w-full overflow-x-auto pb-1">
+	                    <div className="flex w-max gap-2 pr-1">
                     {[-3, -2, -1, 0, 1, 2, 3].map((offset) => {
                       const date = addDays(new Date(), offset);
                       const key = getDateKey(date);
@@ -783,8 +935,9 @@ export default function Home() {
                           <span className={`mx-auto mt-1 block size-1.5 rounded-full ${hasItems ? "bg-[color:var(--rose-deep)]" : "bg-transparent"}`} />
                         </button>
                       );
-                    })}
-                  </div>
+	                    })}
+	                    </div>
+	                  </div>
 
                   <Panel>
                     <div className="flex flex-col gap-3 border-b border-[color:var(--line)] pb-4 sm:flex-row sm:items-end sm:justify-between">
@@ -851,8 +1004,8 @@ export default function Home() {
                     </form>
                   </Panel>
 
-                  <Panel>
-                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+	                  <Panel>
+	                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div className="flex flex-wrap gap-2">
                         {dailyBrands.map((brand) => (
                           <button
@@ -927,10 +1080,78 @@ export default function Home() {
                       ) : (
                         <EmptyState label="Nothing scheduled for this day." action="Add a product to build your filming queue." />
                       )}
-                    </div>
-                  </Panel>
-                </div>
-              ) : null}
+	                    </div>
+	                  </Panel>
+
+	                  <Panel>
+	                    <SectionHeader title="Content Bank" count={data.content.length} />
+	                    <div className="space-y-3">
+	                      {data.content.length ? (
+	                        data.content.map((item) => (
+	                          <article key={item.id} className="rounded-xl border border-[color:var(--line)] bg-white/60 p-3">
+	                            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+	                              <div className="min-w-0">
+	                                <h3 className="truncate text-base font-semibold">{item.productName}</h3>
+	                                <p className="text-xs uppercase tracking-wide text-[color:var(--muted)]">{item.brand || "No brand"}</p>
+	                              </div>
+	                              <button
+	                                className="self-start rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-xs text-[color:var(--rose-deep)]"
+	                                onClick={() => deleteItem("content", item.id)}
+	                                type="button"
+	                              >
+	                                Remove
+	                              </button>
+	                            </div>
+	                            <div className="mt-3 grid gap-2 md:grid-cols-4">
+	                              <select
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                onChange={(event) => updateContentItem(item.id, { type: event.target.value })}
+	                                value={item.type}
+	                              >
+	                                <option value="">Type</option>
+	                                {contentTypes.map((type) => (
+	                                  <option key={type} value={type}>
+	                                    {type}
+	                                  </option>
+	                                ))}
+	                              </select>
+	                              <input
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                inputMode="numeric"
+	                                onChange={(event) => updateContentItem(item.id, { views48: event.target.value })}
+	                                placeholder="48-hour views"
+	                                value={item.views48}
+	                              />
+	                              <select
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                onChange={(event) => updateContentItem(item.id, { gotSales: event.target.value as ContentItem["gotSales"] })}
+	                                value={item.gotSales}
+	                              >
+	                                <option>Unknown</option>
+	                                <option>Yes</option>
+	                                <option>No</option>
+	                              </select>
+	                              <input
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                onChange={(event) => updateContentItem(item.id, { datePosted: event.target.value })}
+	                                type="date"
+	                                value={item.datePosted}
+	                              />
+	                            </div>
+	                            {item.script ? (
+	                              <p className="mt-3 max-h-24 overflow-hidden rounded-lg bg-[color:var(--cream)]/70 p-3 text-sm leading-6 text-[color:var(--muted)]">
+	                                {item.script}
+	                              </p>
+	                            ) : null}
+	                          </article>
+	                        ))
+	                      ) : (
+	                        <EmptyState label="No completed content tracked yet." action="Mark a product done above and it will appear here." />
+	                      )}
+	                    </div>
+	                  </Panel>
+	                </div>
+	              ) : null}
 
               {activeView !== "home" && activeView !== "tasks" ? (
               <div ref={formPanelRef} className="order-1 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -978,26 +1199,38 @@ export default function Home() {
                             placeholder="Brand"
                             value={productBrand}
                           />
-                          <input
-                            className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
-                            onChange={(event) => setProductCategory(event.target.value)}
-                            placeholder="Category"
-                            value={productCategory}
-                          />
+	                          <select
+	                            className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
+	                            onChange={(event) => setProductCategory(event.target.value)}
+	                            value={productCategory}
+	                          >
+	                            {productCategories.map((category) => (
+	                              <option key={category} value={category}>
+	                                {category}
+	                              </option>
+	                            ))}
+	                          </select>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <select
-                            className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
-                            onChange={(event) => setProductStatus(event.target.value)}
-                            value={productStatus}
+	                        <div className="grid gap-3 sm:grid-cols-2">
+	                          <select
+	                            className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
+	                            onChange={(event) => setProductStatus(event.target.value)}
+	                            value={productStatus}
                           >
                             <option>Researching</option>
                             <option>Requested</option>
                             <option>Received</option>
                             <option>Filmed</option>
-                            <option>Posted</option>
-                          </select>
-                        </div>
+	                            <option>Posted</option>
+	                          </select>
+	                          <input
+	                            className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
+	                            inputMode="numeric"
+	                            onChange={(event) => setProductUnitsSold(event.target.value)}
+	                            placeholder="Units sold"
+	                            value={productUnitsSold}
+	                          />
+	                        </div>
                         <input
                           className="h-11 w-full rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
                           onChange={(event) => setProductLink(event.target.value)}
@@ -1062,48 +1295,44 @@ export default function Home() {
               </div>
               ) : null}
 
-              {activeView === "home" ? (
-              <div className="order-2 grid gap-5 xl:grid-cols-2">
-                <Panel>
-                  <SectionHeader title="Today's Tasks" count={filtered.tasks.length} />
-                  <div className="space-y-2">
-                    {filtered.tasks.length ? (
-                      filtered.tasks.slice(0, 5).map((task) => (
-                        <div key={task.id} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/60 px-3 py-2">
-                          <button
-                            className={`size-4 rounded border ${task.status === "Done" ? "border-[color:var(--sage)] bg-[color:var(--sage)]" : "border-[color:var(--muted)]"}`}
-                            onClick={() => cycleTaskStatus(task.id)}
-                            type="button"
-                            aria-label="Change task status"
-                          />
-                          <span className={`min-w-0 flex-1 text-sm ${task.status === "Done" ? "text-[color:var(--muted)] line-through" : ""}`}>
-                            {task.title}
-                          </span>
-                          <span className="rounded-full bg-[color:var(--cream)] px-3 py-1 text-xs text-[color:var(--rose-deep)]">{task.status}</span>
-                          <button className="hidden text-xs text-[color:var(--sage)] sm:inline" onClick={() => startEdit("task", task.id)} type="button">
-                            Edit
-                          </button>
-                          <button className="hidden text-xs text-[color:var(--rose-deep)] sm:inline" onClick={() => deleteItem("task", task.id)} type="button">
-                            Delete
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState label="No tasks saved yet." action="Add a task to start planning today." />
-                    )}
-                  </div>
-                  <button
-                    className="mt-3 flex h-12 w-full items-center justify-center rounded-lg bg-[color:var(--sage)] text-base font-semibold text-white"
-                    onClick={() => startAdd("task")}
-                    type="button"
-                  >
-                    + New Task
-                  </button>
-                </Panel>
+	              {activeView === "home" ? (
+	              <div className="order-2 grid gap-5 xl:grid-cols-2">
+	                <Panel>
+	                  <SectionHeader title="Today's Content" count={todaysProducts.length} />
+	                  <div className="space-y-2">
+	                    {todaysProducts.length ? (
+	                      todaysProducts.slice(0, 5).map((product) => (
+	                        <div key={product.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/60 px-3 py-2">
+	                          <button
+	                            className={`size-4 shrink-0 rounded border ${product.done ? "border-[color:var(--sage)] bg-[color:var(--sage)]" : "border-[color:var(--muted)]"}`}
+	                            onClick={() => updateDailyProduct(product.id, { done: !product.done })}
+	                            type="button"
+	                            aria-label="Mark content complete"
+	                          />
+	                          <span className={`min-w-0 flex-1 truncate text-sm ${product.done ? "text-[color:var(--muted)] line-through" : ""}`}>
+	                            {product.productName}
+	                          </span>
+	                          <span className="shrink-0 rounded-full bg-[color:var(--cream)] px-3 py-1 text-xs text-[color:var(--rose-deep)]">
+	                            {product.done ? "Done" : "Planned"}
+	                          </span>
+	                        </div>
+	                      ))
+	                    ) : (
+	                      <EmptyState label="No content scheduled yet." action="Add a product to start planning today." />
+	                    )}
+	                  </div>
+	                  <button
+	                    className="mt-3 flex h-12 w-full items-center justify-center rounded-lg bg-[color:var(--sage)] text-base font-semibold text-white"
+	                    onClick={() => handleViewChange("tasks")}
+	                    type="button"
+	                  >
+	                    + Add Product
+	                  </button>
+	                </Panel>
 
-                {activeView === "home" ? (
-                <Panel>
-                  <SectionHeader title="Recent Scripts" count={filtered.scripts.length} />
+	                {activeView === "home" ? (
+	                <Panel>
+	                  <SectionHeader title="Recent Scripts" count={filtered.scripts.length} actionLabel="+ New Script" onAction={() => startAdd("script")} />
                   <div className="space-y-3">
                     {filtered.scripts.length ? (
                       filtered.scripts.slice(0, 4).map((script) => (
@@ -1134,9 +1363,14 @@ export default function Home() {
 
               {(activeView === "home" || activeView === "hooks" || activeView === "products") ? (
               <div className="order-3 grid gap-5 xl:grid-cols-2">
-                {(activeView === "home" || activeView === "hooks") ? (
-                <Panel>
-                  <SectionHeader title="Recent Hooks" count={filtered.hooks.length} />
+	                {(activeView === "home" || activeView === "hooks") ? (
+	                <Panel>
+	                  <SectionHeader
+	                    title={activeView === "hooks" ? "Hook Bank" : "Recent Hooks"}
+	                    count={filtered.hooks.length}
+	                    actionLabel="+ New Hook"
+	                    onAction={() => startAdd("hook")}
+	                  />
                   <div className="space-y-3">
                     {filtered.hooks.length ? (
                       filtered.hooks.slice(0, activeView === "hooks" ? undefined : 4).map((hook) => (
@@ -1159,9 +1393,14 @@ export default function Home() {
                 </Panel>
                 ) : null}
 
-                {(activeView === "home" || activeView === "products") ? (
-                <Panel>
-                  <SectionHeader title="Recent Products" count={filtered.products.length} />
+	                {(activeView === "home" || activeView === "products") ? (
+	                <Panel>
+	                  <SectionHeader
+	                    title={activeView === "products" ? "Product Bank" : "Recent Products"}
+	                    count={filtered.products.length}
+	                    actionLabel="+ New Product"
+	                    onAction={() => startAdd("product")}
+	                  />
                   <div className="space-y-2">
                     {filtered.products.length ? (
                       filtered.products.slice(0, activeView === "products" ? undefined : 4).map((product) => (
@@ -1169,11 +1408,14 @@ export default function Home() {
                           <IconSlot tone="clay" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold">{product.name}</p>
-                            <p className="text-xs text-[color:var(--muted)]">
-                              {[product.brand, product.category, product.status].filter(Boolean).join(" · ")}
-                            </p>
-                          </div>
-                          <div className="hidden shrink-0 gap-2 text-xs sm:flex">
+	                            <p className="text-xs text-[color:var(--muted)]">
+	                              {[product.brand, product.category, product.status].filter(Boolean).join(" · ")}
+	                            </p>
+	                          </div>
+	                          <span className="shrink-0 rounded-full bg-[color:var(--cream)] px-3 py-1 text-xs text-[color:var(--sage)]">
+	                            {product.unitsSold} sold
+	                          </span>
+	                          <div className="hidden shrink-0 gap-2 text-xs sm:flex">
                             {product.link ? (
                               <a className="text-[color:var(--sage)]" href={product.link} rel="noreferrer" target="_blank">
                                 Open
@@ -1191,11 +1433,52 @@ export default function Home() {
                     ) : (
                       <EmptyState label="No products saved yet." action="Add products you want to research or film." />
                     )}
-                  </div>
-                </Panel>
-                ) : null}
-              </div>
-              ) : null}
+	                  </div>
+	                </Panel>
+	                ) : null}
+
+		                {activeView === "home" ? (
+		                <Panel className="bg-[color:var(--foreground)] text-[color:var(--paper)]">
+		                  <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+		                    <div>
+		                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--sand)]">Leaderboard</p>
+		                      <h2 className="mt-1 text-lg font-semibold">Top Products Sold</h2>
+		                    </div>
+		                    <span className="text-sm text-[color:var(--sand)]">{topProducts.length} ranked</span>
+		                  </div>
+		                  <div className="space-y-1">
+		                    {topProducts.length ? (
+		                      topProducts.map((product, index) => (
+		                        <article key={product.id} className="grid min-w-0 grid-cols-[auto_1fr] gap-3 border-b border-white/10 py-3 last:border-b-0 sm:grid-cols-[auto_1fr_minmax(96px,180px)_auto] sm:items-center">
+		                          <CategoryIcon category={product.category} />
+		                          <div className="min-w-0">
+		                            <p className="truncate text-sm font-semibold">{product.name}</p>
+		                            <p className="text-xs text-white/55">
+		                              #{index + 1} · {product.brand || "No brand"} · {normalizeProductCategory(product.category)}
+		                            </p>
+		                          </div>
+		                          <div className="col-span-2 h-2 rounded-full bg-white/15 sm:col-span-1">
+		                            <div
+		                              className="h-full rounded-full bg-[color:var(--sage-soft)]"
+		                              style={{ width: `${topProductMaxUnits ? Math.max((product.unitsSold / topProductMaxUnits) * 100, 8) : 0}%` }}
+		                            />
+		                          </div>
+		                          <span className="justify-self-end rounded-full bg-white/10 px-3 py-1 text-xs text-[color:var(--sand)] sm:justify-self-auto">
+		                            {product.unitsSold} sold
+		                          </span>
+		                        </article>
+		                      ))
+		                    ) : (
+		                      <div className="rounded-lg border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white/70">
+		                        <p>No product sales saved yet.</p>
+		                        <p className="mt-1 text-[color:var(--sand)]">Add units sold in Product Bank to see top products.</p>
+		                      </div>
+		                    )}
+		                  </div>
+		                </Panel>
+	                ) : null}
+	              </div>
+	              ) : null}
 
               {activeView === "scripts" ? (
                 <div className="order-2">
