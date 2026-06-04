@@ -926,7 +926,7 @@ export default function Home() {
 			                  <Panel className="order-2 bg-[color:var(--foreground)] text-[color:var(--paper)]">
 		                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
 		                      <div>
-		                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--sand)]">Leaderboard</p>
+		                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--sage)]">Leaderboard</p>
 		                        <h2 className="mt-1 text-lg font-semibold">Top Products Sold</h2>
 		                      </div>
 		                      <span className="text-sm text-[color:var(--sand)]">{topProducts.length} ranked</span>
