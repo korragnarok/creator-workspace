@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type ItemType = "task" | "hook" | "product" | "script" | "content";
-type ViewType = "home" | "tasks" | "hooks" | "products" | "scripts";
+type ViewType = "home" | "tasks" | "tracker" | "hooks" | "products" | "scripts";
 
 type Task = {
   id: string;
@@ -68,6 +68,7 @@ type WorkspaceData = {
   products: Product[];
   scripts: Script[];
   content: ContentItem[];
+  coreBrands: string[];
   dailyProducts: Record<string, DailyProduct[]>;
 };
 
@@ -77,6 +78,7 @@ const emptyData: WorkspaceData = {
   products: [],
   scripts: [],
   content: [],
+  coreBrands: ["", "", "", "", ""],
   dailyProducts: {},
 };
 
@@ -104,6 +106,7 @@ const productCategories = ["Lifestyle", "Beauty", "Tech", "Outdoor", "Health", "
 const navItems = [
   { label: "Home", view: "home" },
   { label: "Content", view: "tasks" },
+  { label: "Tracker", view: "tracker" },
   { label: "Hook Bank", view: "hooks" },
   { label: "Product Bank", view: "products" },
   { label: "Script Vault", view: "scripts" },
@@ -111,6 +114,7 @@ const navItems = [
 
 const viewToForm: Record<Exclude<ViewType, "home">, ItemType> = {
   tasks: "product",
+  tracker: "content",
   hooks: "hook",
   products: "product",
   scripts: "script",
@@ -121,7 +125,7 @@ const typeToView: Record<ItemType, Exclude<ViewType, "home">> = {
   hook: "hooks",
   product: "products",
   script: "scripts",
-  content: "tasks",
+  content: "tracker",
 };
 
 const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
@@ -132,6 +136,10 @@ const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
   tasks: {
     title: "Daily To Do",
     subtitle: "Build a product queue, sort by brand, and save scripts for the day.",
+  },
+  tracker: {
+    title: "Content Tracker",
+    subtitle: "Review posted content, 48-hour views, sales signal, post date, and content type.",
   },
   hooks: {
     title: "Hook Bank",
@@ -204,19 +212,24 @@ function normalizeProductCategory(category?: string) {
   return match ?? "Lifestyle";
 }
 
+function normalizeCoreBrands(coreBrands?: string[]) {
+  return Array.from({ length: 5 }, (_, index) => coreBrands?.[index] ?? "");
+}
+
 function normalizeWorkspaceData(saved: Partial<WorkspaceData>): WorkspaceData {
   const normalized = {
     ...emptyData,
     ...saved,
     content: saved.content ?? [],
+    coreBrands: normalizeCoreBrands(saved.coreBrands),
     dailyProducts: saved.dailyProducts ?? {},
-	    products: (saved.products ?? []).map((product) => ({
-	      ...product,
-	      brand: product.brand ?? "",
-	      category: normalizeProductCategory(product.category),
-	      unitsSold: product.unitsSold ?? 0,
-	    })),
-	  };
+    products: (saved.products ?? []).map((product) => ({
+      ...product,
+      brand: product.brand ?? "",
+      category: normalizeProductCategory(product.category),
+      unitsSold: product.unitsSold ?? 0,
+    })),
+  };
 
   const today = getDateKey(new Date());
   const yesterday = getDateKey(addDays(new Date(), -1));
@@ -712,14 +725,25 @@ export default function Home() {
     });
   }
 
-  function updateContentItem(id: string, changes: Partial<ContentItem>) {
-    setData((current) => ({
-      ...current,
-      content: current.content.map((item) => (item.id === id ? { ...item, ...changes } : item)),
-    }));
-  }
+	  function updateContentItem(id: string, changes: Partial<ContentItem>) {
+	    setData((current) => ({
+	      ...current,
+	      content: current.content.map((item) => (item.id === id ? { ...item, ...changes } : item)),
+	    }));
+	  }
 
-  function removeDailyProduct(id: string) {
+	  function updateCoreBrand(index: number, value: string) {
+	    setData((current) => {
+	      const nextCoreBrands = normalizeCoreBrands(current.coreBrands);
+	      nextCoreBrands[index] = value;
+	      return {
+	        ...current,
+	        coreBrands: nextCoreBrands,
+	      };
+	    });
+	  }
+
+	  function removeDailyProduct(id: string) {
     setData((current) => ({
       ...current,
       dailyProducts: {
@@ -1124,77 +1148,10 @@ export default function Home() {
 	                    </div>
 	                  </Panel>
 
-	                  <Panel>
-	                    <SectionHeader title="Content Bank" count={data.content.length} />
-	                    <div className="space-y-3">
-	                      {data.content.length ? (
-	                        data.content.map((item) => (
-	                          <article key={item.id} className="rounded-xl border border-[color:var(--line)] bg-white/60 p-3">
-	                            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-	                              <div className="min-w-0">
-	                                <h3 className="truncate text-base font-semibold">{item.productName}</h3>
-	                                <p className="text-xs uppercase tracking-wide text-[color:var(--muted)]">{item.brand || "No brand"}</p>
-	                              </div>
-	                              <button
-	                                className="self-start rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-xs text-[color:var(--rose-deep)]"
-	                                onClick={() => deleteItem("content", item.id)}
-	                                type="button"
-	                              >
-	                                Remove
-	                              </button>
-	                            </div>
-	                            <div className="mt-3 grid gap-2 md:grid-cols-4">
-	                              <select
-	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
-	                                onChange={(event) => updateContentItem(item.id, { type: event.target.value })}
-	                                value={item.type}
-	                              >
-	                                <option value="">Type</option>
-	                                {contentTypes.map((type) => (
-	                                  <option key={type} value={type}>
-	                                    {type}
-	                                  </option>
-	                                ))}
-	                              </select>
-	                              <input
-	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
-	                                inputMode="numeric"
-	                                onChange={(event) => updateContentItem(item.id, { views48: event.target.value })}
-	                                placeholder="48-hour views"
-	                                value={item.views48}
-	                              />
-	                              <select
-	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
-	                                onChange={(event) => updateContentItem(item.id, { gotSales: event.target.value as ContentItem["gotSales"] })}
-	                                value={item.gotSales}
-	                              >
-	                                <option>Unknown</option>
-	                                <option>Yes</option>
-	                                <option>No</option>
-	                              </select>
-	                              <input
-	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
-	                                onChange={(event) => updateContentItem(item.id, { datePosted: event.target.value })}
-	                                type="date"
-	                                value={item.datePosted}
-	                              />
-	                            </div>
-	                            {item.script ? (
-	                              <p className="mt-3 max-h-24 overflow-hidden rounded-lg bg-[color:var(--cream)]/70 p-3 text-sm leading-6 text-[color:var(--muted)]">
-	                                {item.script}
-	                              </p>
-	                            ) : null}
-	                          </article>
-	                        ))
-	                      ) : (
-	                        <EmptyState label="No completed content tracked yet." action="Mark a product done above and it will appear here." />
-	                      )}
-	                    </div>
-	                  </Panel>
-	                </div>
-	              ) : null}
+		                </div>
+		              ) : null}
 
-              {activeView !== "home" && activeView !== "tasks" ? (
+	              {activeView !== "home" && activeView !== "tasks" && activeView !== "tracker" ? (
               <div ref={formPanelRef} className="order-1 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <Panel>
                   <SectionHeader title={editingId ? `Edit ${formTitles[activeForm].replace("Add ", "").replace("Save a ", "")}` : formTitles[activeForm]} />
@@ -1332,11 +1289,83 @@ export default function Home() {
                 <section className="hidden min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#8c8d78,#d8b4a9)] p-7 text-white shadow-sm sm:block">
                   <p className="max-w-48 text-3xl leading-snug">small steps create big content.</p>
                   <div className="mt-8 h-24 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
-                </section>
-              </div>
-              ) : null}
+	                </section>
+	              </div>
+	              ) : null}
 
-	              {activeView === "home" ? (
+	              {activeView === "tracker" ? (
+	                <div className="order-2">
+	                  <Panel>
+	                    <SectionHeader title="Content Tracker" count={data.content.length} />
+	                    <div className="space-y-3">
+	                      {data.content.length ? (
+	                        data.content.map((item) => (
+	                          <article key={item.id} className="rounded-xl border border-[color:var(--line)] bg-white/60 p-3">
+	                            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+	                              <div className="min-w-0">
+	                                <h3 className="truncate text-base font-semibold">{item.productName}</h3>
+	                                <p className="text-xs uppercase tracking-wide text-[color:var(--muted)]">{item.brand || "No brand"}</p>
+	                              </div>
+	                              <button
+	                                className="self-start rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-xs text-[color:var(--rose-deep)]"
+	                                onClick={() => deleteItem("content", item.id)}
+	                                type="button"
+	                              >
+	                                Remove
+	                              </button>
+	                            </div>
+	                            <div className="mt-3 grid gap-2 md:grid-cols-4">
+	                              <select
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                onChange={(event) => updateContentItem(item.id, { type: event.target.value })}
+	                                value={item.type}
+	                              >
+	                                <option value="">Type</option>
+	                                {contentTypes.map((type) => (
+	                                  <option key={type} value={type}>
+	                                    {type}
+	                                  </option>
+	                                ))}
+	                              </select>
+	                              <input
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                inputMode="numeric"
+	                                onChange={(event) => updateContentItem(item.id, { views48: event.target.value })}
+	                                placeholder="48-hour views"
+	                                value={item.views48}
+	                              />
+	                              <select
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                onChange={(event) => updateContentItem(item.id, { gotSales: event.target.value as ContentItem["gotSales"] })}
+	                                value={item.gotSales}
+	                              >
+	                                <option>Unknown</option>
+	                                <option>Yes</option>
+	                                <option>No</option>
+	                              </select>
+	                              <input
+	                                className="h-10 min-w-0 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+	                                onChange={(event) => updateContentItem(item.id, { datePosted: event.target.value })}
+	                                type="date"
+	                                value={item.datePosted}
+	                              />
+	                            </div>
+	                            {item.script ? (
+	                              <p className="mt-3 max-h-24 overflow-hidden rounded-lg bg-[color:var(--cream)]/70 p-3 text-sm leading-6 text-[color:var(--muted)]">
+	                                {item.script}
+	                              </p>
+	                            ) : null}
+	                          </article>
+	                        ))
+	                      ) : (
+	                        <EmptyState label="No completed content tracked yet." action="Mark a product done in Daily To Do and it will appear here." />
+	                      )}
+	                    </div>
+	                  </Panel>
+	                </div>
+	              ) : null}
+
+		              {activeView === "home" ? (
 	              <div className="order-2 grid gap-5 xl:grid-cols-2">
 	                <Panel>
 	                  <SectionHeader title="Today's Content" count={todaysProducts.length} />
@@ -1517,31 +1546,30 @@ export default function Home() {
               ) : null}
             </div>
 
-            <div className="hidden space-y-5 lg:block">
-              <Panel>
-                <h2 className="mb-4 text-lg font-semibold">Quick Actions</h2>
-                <div className="space-y-3">
-                  {quickAdds.map((action) => (
-                    <button
-                      key={action.label}
-                      className={`flex h-14 w-full items-center gap-3 rounded-lg px-4 text-left text-sm font-semibold ${
-                        action.tone === "clay"
-                          ? "bg-[color:var(--rose-deep)] text-white"
-                          : action.tone === "sage"
-                            ? "bg-[color:var(--sage-soft)]"
-                            : action.tone === "sand"
-                              ? "bg-[color:var(--sand)]"
-                              : "bg-[color:var(--rose)]"
-                      }`}
-                      onClick={() => startAdd(action.type)}
-                      type="button"
-                    >
-                      <IconSlot tone={action.tone} />
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
-              </Panel>
+	            <div className="hidden space-y-5 lg:block">
+	              <Panel>
+	                <div className="mb-4 flex items-center justify-between gap-3">
+	                  <h2 className="text-lg font-semibold">Core 5</h2>
+	                  <span className="text-sm text-[color:var(--sage)]">
+	                    {data.coreBrands.filter((brand) => brand.trim()).length}/5
+	                  </span>
+	                </div>
+	                <div className="space-y-2">
+	                  {normalizeCoreBrands(data.coreBrands).map((brand, index) => (
+	                    <label key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/60 p-2">
+	                      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[color:var(--cream)] text-sm font-semibold text-[color:var(--sage)]">
+	                        {index + 1}
+	                      </span>
+	                      <input
+	                        className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-[color:var(--muted)]"
+	                        onChange={(event) => updateCoreBrand(index, event.target.value)}
+	                        placeholder="Brand name"
+	                        value={brand}
+	                      />
+	                    </label>
+	                  ))}
+	                </div>
+	              </Panel>
 
               <Panel>
                 <h2 className="mb-3 text-lg font-semibold">Storage</h2>
@@ -1554,11 +1582,11 @@ export default function Home() {
           </div>
         </section>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[color:var(--line)] bg-[color:var(--paper)]/95 px-2 py-2 shadow-[0_-8px_30px_rgba(47,42,37,0.08)] backdrop-blur lg:hidden">
+	      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-[color:var(--line)] bg-[color:var(--paper)]/95 px-1 py-2 shadow-[0_-8px_30px_rgba(47,42,37,0.08)] backdrop-blur lg:hidden">
         {navItems.map((item) => (
           <button
             key={item.label}
-            className={`flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1 text-[11px] ${
+	            className={`flex min-w-0 flex-col items-center gap-1 rounded-lg px-0.5 py-1 text-[10px] ${
               activeView === item.view ? "text-[color:var(--rose-deep)]" : "text-[color:var(--muted)]"
             }`}
             onClick={() => handleViewChange(item.view)}
