@@ -913,10 +913,12 @@ export default function Home() {
                   </p>
                 </div>
 
-	                <div className="min-h-40 rounded-2xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#a45166,#ead5d1)] p-5 text-white shadow-sm sm:hidden">
-	                  <p className="max-w-28 text-2xl leading-snug">small steps create big content.</p>
-	                  <img alt="" className="mt-5 h-12 w-full rounded-lg border border-white/35 bg-white/15 object-cover" src="/images/small-steps-card.png" />
-	                </div>
+		                <div className="min-h-40 rounded-2xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#a45166,#ead5d1)] p-5 text-white shadow-sm sm:hidden">
+		                  <p className="max-w-28 text-2xl leading-snug">small steps create big content.</p>
+		                  <div className="mt-5 grid h-12 w-full place-items-center rounded-lg border border-white/35 bg-white/20">
+		                    <img alt="" className="size-full object-cover opacity-0" src="/images/small-steps-card.png" />
+		                  </div>
+		                </div>
 
 			                <div className="col-span-2 mt-5 flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1fr)]">
 			                  <div className="order-1 grid min-w-0 grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3">
@@ -925,7 +927,7 @@ export default function Home() {
 		                        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 xl:flex-col xl:items-start">
 		                          <IconSlot tone={metric.tone} />
 		                          <div className="min-w-0">
-		                            <p className="text-xs leading-4 text-[color:var(--muted)] sm:text-sm">{metric.label}</p>
+			                            <p className="text-xs font-semibold uppercase leading-4 tracking-wide text-[color:var(--rose-deep)] sm:text-sm">{metric.label}</p>
 		                            <p className="text-2xl font-semibold sm:text-3xl">{metric.value}</p>
 		                            <p className="text-xs leading-4 text-[color:var(--sage)] sm:text-sm">{metric.note}</p>
 		                          </div>
@@ -1299,7 +1301,9 @@ export default function Home() {
 
 	                <section className="hidden min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#a45166,#ead5d1)] p-7 text-white shadow-sm sm:block">
 	                  <p className="max-w-48 text-3xl leading-snug">small steps create big content.</p>
-	                  <img alt="" className="mt-8 h-24 w-full rounded-lg border border-white/35 bg-white/15 object-cover" src="/images/small-steps-card.png" />
+	                  <div className="mt-8 grid h-24 w-full place-items-center rounded-lg border border-white/35 bg-white/20">
+	                    <img alt="" className="size-full object-cover opacity-0" src="/images/small-steps-card.png" />
+	                  </div>
 		                </section>
 	              </div>
 	              ) : null}
@@ -1412,12 +1416,12 @@ export default function Home() {
 	                </Panel>
 
 		                {activeView === "home" ? (
-		                <Panel className="!bg-[color:var(--rose)]/70">
+		                <Panel className="!border-[#d9a9a5] !bg-[#f1dfdc]">
 		                  <SectionHeader title="Recent Scripts" count={filtered.scripts.length} actionLabel="+ New Script" onAction={() => startAdd("script")} />
 	                  <div className="space-y-3">
 	                    {filtered.scripts.length ? (
 	                      filtered.scripts.slice(0, 4).map((script) => (
-	                        <article key={script.id} className="flex gap-3 rounded-lg border border-[color:var(--line)] bg-white/55 p-3">
+	                        <article key={script.id} className="flex gap-3 rounded-lg border border-[#d9a9a5] bg-white/70 p-3">
                           <IconSlot tone="neutral" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold">{script.title}</p>
@@ -1475,7 +1479,7 @@ export default function Home() {
                 ) : null}
 
 		                {(activeView === "home" || activeView === "products") ? (
-		                <Panel className={activeView === "home" ? "!bg-[color:var(--rose)]/70" : ""}>
+			                <Panel className={activeView === "home" ? "!border-[#d9a9a5] !bg-[#f1dfdc]" : ""}>
 	                  <SectionHeader
 	                    title={activeView === "products" ? "Product Bank" : "Recent Products"}
 	                    count={filtered.products.length}
@@ -1485,7 +1489,7 @@ export default function Home() {
                   <div className="space-y-2">
                     {filtered.products.length ? (
                       filtered.products.slice(0, activeView === "products" ? undefined : 4).map((product) => (
-	                        <article key={product.id} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/55 p-2">
+		                        <article key={product.id} className="flex items-center gap-3 rounded-lg border border-[#d9a9a5] bg-white/70 p-2">
                           <IconSlot tone="clay" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold">{product.name}</p>
