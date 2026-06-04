@@ -109,11 +109,11 @@ const productCategories = ["Lifestyle", "Beauty", "Tech", "Outdoor", "Health", "
 
 const navItems = [
   { label: "Home", view: "home" },
-  { label: "Content", view: "tasks" },
-  { label: "Tracker", view: "tracker" },
-  { label: "Hook Bank", view: "hooks" },
-  { label: "Product Bank", view: "products" },
-  { label: "Script Vault", view: "scripts" },
+  { label: "Daily To Do", view: "tasks" },
+  { label: "Content Tracker", view: "tracker" },
+  { label: "Hooks", view: "hooks" },
+  { label: "Products", view: "products" },
+  { label: "Scripts", view: "scripts" },
 ] as const;
 
 const viewToForm: Partial<Record<Exclude<ViewType, "home">, ItemType>> = {
@@ -530,6 +530,13 @@ export default function Home() {
 	      setActiveForm(nextForm);
 	      resetForm();
 	    }
+	  }
+
+	  function openShortcut(view: ViewType) {
+	    handleViewChange(view);
+	    window.setTimeout(() => {
+	      window.scrollTo({ top: 0, behavior: "smooth" });
+	    }, 0);
 	  }
 
   function startAdd(type: ItemType) {
@@ -984,8 +991,9 @@ export default function Home() {
 			                    {metrics.map((metric) => (
 			                      <button
 			                        key={metric.label}
-			                        className="min-w-0 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 text-left shadow-sm transition hover:border-[color:var(--rose-deep)] sm:p-4"
-			                        onClick={() => handleViewChange(metric.view)}
+			                        aria-label={`Open ${metric.label}`}
+			                        className="relative z-10 min-w-0 cursor-pointer rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 text-left shadow-sm transition active:scale-[0.98] hover:border-[color:var(--rose-deep)] sm:p-4"
+			                        onClick={() => openShortcut(metric.view)}
 			                        type="button"
 			                      >
 			                        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 xl:flex-col xl:items-start">
