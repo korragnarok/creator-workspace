@@ -22,6 +22,7 @@ type Hook = {
 type Product = {
   id: string;
   name: string;
+  brand: string;
   category: string;
   link: string;
   status: string;
@@ -37,11 +38,22 @@ type Script = {
   createdAt: string;
 };
 
+type DailyProduct = {
+  id: string;
+  productName: string;
+  brand: string;
+  link: string;
+  script: string;
+  done: boolean;
+  createdAt: string;
+};
+
 type WorkspaceData = {
   tasks: Task[];
   hooks: Hook[];
   products: Product[];
   scripts: Script[];
+  dailyProducts: Record<string, DailyProduct[]>;
 };
 
 const emptyData: WorkspaceData = {
@@ -49,6 +61,7 @@ const emptyData: WorkspaceData = {
   hooks: [],
   products: [],
   scripts: [],
+  dailyProducts: {},
 };
 
 const storageKey = "creator-workspace-data";
@@ -62,7 +75,7 @@ const navItems = [
 ] as const;
 
 const viewToForm: Record<Exclude<ViewType, "home">, ItemType> = {
-  tasks: "task",
+  tasks: "product",
   hooks: "hook",
   products: "product",
   scripts: "script",
@@ -81,8 +94,8 @@ const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
     subtitle: "Let's create, plan, and stay consistent.",
   },
   tasks: {
-    title: "Tasks",
-    subtitle: "Plan, update, and finish today's creator work.",
+    title: "Daily To Do",
+    subtitle: "Build a product queue, sort by brand, and save scripts for the day.",
   },
   hooks: {
     title: "Hook Bank",
@@ -99,7 +112,7 @@ const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
 };
 
 const quickAdds: Array<{ label: string; type: ItemType; tone: "rose" | "sage" | "clay" | "sand" }> = [
-  { label: "New Task", type: "task", tone: "rose" },
+  { label: "Add Product", type: "product", tone: "rose" },
   { label: "New Hook", type: "hook", tone: "sage" },
   { label: "New Product", type: "product", tone: "clay" },
   { label: "New Script", type: "script", tone: "sand" },
@@ -116,9 +129,28 @@ function makeId() {
   return crypto.randomUUID();
 }
 
+function getDateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
 function todayLabel() {
   return new Date().toLocaleDateString("en-US", {
     month: "short",
+    day: "numeric",
+  });
+}
+
+function readableDate(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
     day: "numeric",
   });
 }
@@ -176,14 +208,24 @@ export default function Home() {
   const [activeForm, setActiveForm] = useState<ItemType>("task");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => getDateKey(new Date()));
+  const [dailyBrandFilter, setDailyBrandFilter] = useState("All");
+  const [dailySort, setDailySort] = useState<"original" | "brand" | "done" | "remaining">("original");
 
   const [taskTitle, setTaskTitle] = useState("");
   const [hookText, setHookText] = useState("");
   const [hookTag, setHookTag] = useState("");
   const [productName, setProductName] = useState("");
+  const [productBrand, setProductBrand] = useState("");
   const [productCategory, setProductCategory] = useState("");
   const [productLink, setProductLink] = useState("");
   const [productStatus, setProductStatus] = useState("Researching");
+  const [dailyProductName, setDailyProductName] = useState("");
+  const [dailyProductBrand, setDailyProductBrand] = useState("");
+  const [dailyProductLink, setDailyProductLink] = useState("");
+  const [dailyProductScript, setDailyProductScript] = useState("");
+  const [dailySaveProduct, setDailySaveProduct] = useState(true);
+  const [dailySaveScript, setDailySaveScript] = useState(false);
   const [scriptTitle, setScriptTitle] = useState("");
   const [scriptProduct, setScriptProduct] = useState("");
   const [scriptBody, setScriptBody] = useState("");
@@ -212,12 +254,15 @@ export default function Home() {
     window.localStorage.setItem(storageKey, JSON.stringify(data));
   }, [data]);
 
+  const todaysProducts = useMemo(() => data.dailyProducts[selectedDate] ?? [], [data.dailyProducts, selectedDate]);
+  const completedToday = todaysProducts.filter((product) => product.done).length;
+
   const metrics = useMemo(
     () => [
       {
-        label: "tasks today",
-        value: data.tasks.length,
-        note: `${data.tasks.filter((task) => task.status === "Done").length} completed`,
+        label: "products today",
+        value: todaysProducts.length,
+        note: `${completedToday} completed`,
         tone: "rose" as const,
       },
       {
@@ -239,16 +284,35 @@ export default function Home() {
         tone: "sand" as const,
       },
     ],
-    [data],
+    [completedToday, data, todaysProducts.length],
   );
 
   const query = search.trim().toLowerCase();
+  const dailyBrands = useMemo(
+    () => ["All", ...Array.from(new Set(todaysProducts.map((product) => product.brand).filter(Boolean))).sort()],
+    [todaysProducts],
+  );
+  const visibleDailyProducts = useMemo(() => {
+    const filteredByBrand =
+      dailyBrandFilter === "All" ? todaysProducts : todaysProducts.filter((product) => product.brand === dailyBrandFilter);
+    const filteredBySearch = filteredByBrand.filter((product) =>
+      `${product.productName} ${product.brand} ${product.script}`.toLowerCase().includes(query),
+    );
+
+    return [...filteredBySearch].sort((a, b) => {
+      if (dailySort === "brand") return a.brand.localeCompare(b.brand) || a.productName.localeCompare(b.productName);
+      if (dailySort === "done") return Number(b.done) - Number(a.done) || a.productName.localeCompare(b.productName);
+      if (dailySort === "remaining") return Number(a.done) - Number(b.done) || a.productName.localeCompare(b.productName);
+      return 0;
+    });
+  }, [dailyBrandFilter, dailySort, query, todaysProducts]);
+
   const filtered = useMemo(
     () => ({
       tasks: data.tasks.filter((task) => task.title.toLowerCase().includes(query)),
       hooks: data.hooks.filter((hook) => `${hook.text} ${hook.tag}`.toLowerCase().includes(query)),
       products: data.products.filter((product) =>
-        `${product.name} ${product.category} ${product.status}`.toLowerCase().includes(query),
+        `${product.name} ${product.brand} ${product.category} ${product.status}`.toLowerCase().includes(query),
       ),
       scripts: data.scripts.filter((script) => `${script.title} ${script.product} ${script.body}`.toLowerCase().includes(query)),
     }),
@@ -261,9 +325,16 @@ export default function Home() {
     setHookText("");
     setHookTag("");
     setProductName("");
+    setProductBrand("");
     setProductCategory("");
     setProductLink("");
     setProductStatus("Researching");
+    setDailyProductName("");
+    setDailyProductBrand("");
+    setDailyProductLink("");
+    setDailyProductScript("");
+    setDailySaveProduct(true);
+    setDailySaveScript(false);
     setScriptTitle("");
     setScriptProduct("");
     setScriptBody("");
@@ -305,6 +376,7 @@ export default function Home() {
     if (type === "product") {
       const item = data.products.find((product) => product.id === id);
       setProductName(item?.name ?? "");
+      setProductBrand(item?.brand ?? "");
       setProductCategory(item?.category ?? "");
       setProductLink(item?.link ?? "");
       setProductStatus(item?.status ?? "Researching");
@@ -353,6 +425,7 @@ export default function Home() {
                 ? {
                     ...product,
                     name: productName.trim(),
+                    brand: productBrand.trim(),
                     category: productCategory.trim() || "General",
                     link: productLink.trim(),
                     status: productStatus,
@@ -363,6 +436,7 @@ export default function Home() {
               {
                 id: makeId(),
                 name: productName.trim(),
+                brand: productBrand.trim(),
                 category: productCategory.trim() || "General",
                 link: productLink.trim(),
                 status: productStatus,
@@ -403,6 +477,125 @@ export default function Home() {
       }));
       resetForm();
     }
+  }
+
+  function addDailyProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!dailyProductName.trim()) return;
+
+    const createdAt = new Date().toISOString();
+    const dailyItem: DailyProduct = {
+      id: makeId(),
+      productName: dailyProductName.trim(),
+      brand: dailyProductBrand.trim(),
+      link: dailyProductLink.trim(),
+      script: dailyProductScript.trim(),
+      done: false,
+      createdAt,
+    };
+
+    setData((current) => {
+      const nextProducts =
+        dailySaveProduct && dailyProductName.trim()
+          ? [
+              {
+                id: makeId(),
+                name: dailyProductName.trim(),
+                brand: dailyProductBrand.trim(),
+                category: "Daily queue",
+                link: dailyProductLink.trim(),
+                status: "Planned",
+                createdAt,
+              },
+              ...current.products,
+            ]
+          : current.products;
+
+      const nextScripts =
+        dailySaveScript && dailyProductScript.trim()
+          ? [
+              {
+                id: makeId(),
+                title: `${dailyProductName.trim()} script`,
+                product: dailyProductName.trim(),
+                body: dailyProductScript.trim(),
+                status: "Saved",
+                createdAt,
+              },
+              ...current.scripts,
+            ]
+          : current.scripts;
+
+      return {
+        ...current,
+        products: nextProducts,
+        scripts: nextScripts,
+        dailyProducts: {
+          ...current.dailyProducts,
+          [selectedDate]: [dailyItem, ...(current.dailyProducts[selectedDate] ?? [])],
+        },
+      };
+    });
+
+    setDailyProductName("");
+    setDailyProductBrand("");
+    setDailyProductLink("");
+    setDailyProductScript("");
+    setDailySaveProduct(true);
+    setDailySaveScript(false);
+  }
+
+  function updateDailyProduct(id: string, changes: Partial<DailyProduct>) {
+    setData((current) => ({
+      ...current,
+      dailyProducts: {
+        ...current.dailyProducts,
+        [selectedDate]: (current.dailyProducts[selectedDate] ?? []).map((product) =>
+          product.id === id ? { ...product, ...changes } : product,
+        ),
+      },
+    }));
+  }
+
+  function removeDailyProduct(id: string) {
+    setData((current) => ({
+      ...current,
+      dailyProducts: {
+        ...current.dailyProducts,
+        [selectedDate]: (current.dailyProducts[selectedDate] ?? []).filter((product) => product.id !== id),
+      },
+    }));
+  }
+
+  function restartSelectedDay() {
+    if (window.confirm("Clear this day's product queue?")) {
+      setData((current) => ({
+        ...current,
+        dailyProducts: {
+          ...current.dailyProducts,
+          [selectedDate]: [],
+        },
+      }));
+    }
+  }
+
+  function saveDailyScriptToVault(product: DailyProduct) {
+    if (!product.script.trim()) return;
+    const createdAt = new Date().toISOString();
+    setData((current) => ({
+      ...current,
+      scripts: [
+        {
+          id: makeId(),
+          title: `${product.productName} script`,
+          product: product.productName,
+          body: product.script.trim(),
+          status: "Saved",
+          createdAt,
+        },
+        ...current.scripts,
+      ],
+    }));
   }
 
   function deleteItem(type: ItemType, id: string) {
@@ -564,7 +757,182 @@ export default function Home() {
                 </section>
               )}
 
-              {activeView !== "home" ? (
+              {activeView === "tasks" ? (
+                <div className="order-1 space-y-4">
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {[-3, -2, -1, 0, 1, 2, 3].map((offset) => {
+                      const date = addDays(new Date(), offset);
+                      const key = getDateKey(date);
+                      const isActive = key === selectedDate;
+                      const hasItems = Boolean(data.dailyProducts[key]?.length);
+                      return (
+                        <button
+                          key={key}
+                          className={`min-w-14 rounded-xl border px-3 py-2 text-center transition ${
+                            isActive
+                              ? "border-[color:var(--sage)] bg-[color:var(--sage)] text-white"
+                              : "border-[color:var(--line)] bg-[color:var(--paper)] text-[color:var(--muted)]"
+                          }`}
+                          onClick={() => setSelectedDate(key)}
+                          type="button"
+                        >
+                          <span className="block text-[10px] uppercase tracking-wide">
+                            {date.toLocaleDateString("en-US", { weekday: "short" })}
+                          </span>
+                          <span className="block text-xl font-semibold leading-none">{date.getDate()}</span>
+                          <span className={`mx-auto mt-1 block size-1.5 rounded-full ${hasItems ? "bg-[color:var(--rose-deep)]" : "bg-transparent"}`} />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <Panel>
+                    <div className="flex flex-col gap-3 border-b border-[color:var(--line)] pb-4 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-sm text-[color:var(--sage)]">{readableDate(selectedDate)}</p>
+                        <h2 className="mt-1 text-2xl font-semibold">Product Queue</h2>
+                        <p className="mt-1 text-sm text-[color:var(--muted)]">
+                          {completedToday}/{todaysProducts.length} products complete
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button className="rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm" onClick={() => setSelectedDate(getDateKey(new Date()))} type="button">
+                          Today
+                        </button>
+                        <button className="rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm" onClick={() => setData((current) => ({ ...current }))} type="button">
+                          Refresh
+                        </button>
+                        <button className="rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm text-[color:var(--rose-deep)]" onClick={restartSelectedDay} type="button">
+                          Restart
+                        </button>
+                      </div>
+                    </div>
+
+                    <form className="mt-4 grid gap-3" onSubmit={addDailyProduct}>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <input
+                          className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
+                          onChange={(event) => setDailyProductName(event.target.value)}
+                          placeholder="Product name"
+                          value={dailyProductName}
+                        />
+                        <input
+                          className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
+                          onChange={(event) => setDailyProductBrand(event.target.value)}
+                          placeholder="Brand"
+                          value={dailyProductBrand}
+                        />
+                        <input
+                          className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
+                          onChange={(event) => setDailyProductLink(event.target.value)}
+                          placeholder="Product link"
+                          value={dailyProductLink}
+                        />
+                      </div>
+                      <textarea
+                        className="min-h-24 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 py-2 outline-none focus:border-[color:var(--sage)]"
+                        onChange={(event) => setDailyProductScript(event.target.value)}
+                        placeholder="Paste or write the script for this product..."
+                        value={dailyProductScript}
+                      />
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm text-[color:var(--muted)]">
+                          <input checked={dailySaveProduct} onChange={(event) => setDailySaveProduct(event.target.checked)} type="checkbox" />
+                          Save to Product Bank
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-[color:var(--muted)]">
+                          <input checked={dailySaveScript} onChange={(event) => setDailySaveScript(event.target.checked)} type="checkbox" />
+                          Save script to Script Vault
+                        </label>
+                        <button className="ml-auto rounded-lg bg-[color:var(--sage)] px-4 py-2 text-sm font-semibold text-white" type="submit">
+                          + Add Product
+                        </button>
+                      </div>
+                    </form>
+                  </Panel>
+
+                  <Panel>
+                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex flex-wrap gap-2">
+                        {dailyBrands.map((brand) => (
+                          <button
+                            key={brand}
+                            className={`rounded-full border px-3 py-1.5 text-sm ${
+                              dailyBrandFilter === brand
+                                ? "border-[color:var(--sage)] bg-[color:var(--sage)] text-white"
+                                : "border-[color:var(--line)] bg-white/60 text-[color:var(--muted)]"
+                            }`}
+                            onClick={() => setDailyBrandFilter(brand)}
+                            type="button"
+                          >
+                            {brand === "All" ? "All Brands" : brand}
+                          </button>
+                        ))}
+                      </div>
+                      <select
+                        className="h-10 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm outline-none"
+                        onChange={(event) => setDailySort(event.target.value as typeof dailySort)}
+                        value={dailySort}
+                      >
+                        <option value="original">Original</option>
+                        <option value="brand">Brand A-Z</option>
+                        <option value="remaining">Remaining first</option>
+                        <option value="done">Completed first</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-3">
+                      {visibleDailyProducts.length ? (
+                        visibleDailyProducts.map((product) => (
+                          <article key={product.id} className="overflow-hidden rounded-xl border border-[color:var(--line)] bg-white/60">
+                            <div className="flex flex-col gap-3 bg-[color:var(--cream)] p-4 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <h3 className="text-lg font-semibold">{product.productName}</h3>
+                                <p className="text-sm uppercase tracking-wide text-[color:var(--muted)]">{product.brand || "No brand"}</p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {product.link ? (
+                                  <a className="rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-sm" href={product.link} rel="noreferrer" target="_blank">
+                                    Open
+                                  </a>
+                                ) : null}
+                                <button
+                                  className={`rounded-lg px-3 py-1.5 text-sm ${product.done ? "bg-[color:var(--sage)] text-white" : "border border-[color:var(--line)]"}`}
+                                  onClick={() => updateDailyProduct(product.id, { done: !product.done })}
+                                  type="button"
+                                >
+                                  {product.done ? "Done" : "Mark Done"}
+                                </button>
+                                <button className="rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-sm text-[color:var(--rose-deep)]" onClick={() => removeDailyProduct(product.id)} type="button">
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                            <div className="p-4">
+                              <div className="mb-2 flex items-center justify-between">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Script</span>
+                                <button className="text-xs text-[color:var(--sage)]" onClick={() => saveDailyScriptToVault(product)} type="button">
+                                  Save to Script Vault
+                                </button>
+                              </div>
+                              <textarea
+                                className="min-h-28 w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 py-2 text-sm leading-6 outline-none focus:border-[color:var(--sage)]"
+                                onChange={(event) => updateDailyProduct(product.id, { script: event.target.value })}
+                                placeholder="Paste or write your script here..."
+                                value={product.script}
+                              />
+                            </div>
+                          </article>
+                        ))
+                      ) : (
+                        <EmptyState label="Nothing scheduled for this day." action="Add a product to build your filming queue." />
+                      )}
+                    </div>
+                  </Panel>
+                </div>
+              ) : null}
+
+              {activeView !== "home" && activeView !== "tasks" ? (
               <div ref={formPanelRef} className="order-1 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <Panel>
                   <SectionHeader title={editingId ? `Edit ${formTitles[activeForm].replace("Add ", "").replace("Save a ", "")}` : formTitles[activeForm]} />
@@ -606,10 +974,18 @@ export default function Home() {
                         <div className="grid gap-3 sm:grid-cols-2">
                           <input
                             className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
+                            onChange={(event) => setProductBrand(event.target.value)}
+                            placeholder="Brand"
+                            value={productBrand}
+                          />
+                          <input
+                            className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
                             onChange={(event) => setProductCategory(event.target.value)}
                             placeholder="Category"
                             value={productCategory}
                           />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
                           <select
                             className="h-11 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 outline-none focus:border-[color:var(--sage)]"
                             onChange={(event) => setProductStatus(event.target.value)}
@@ -686,13 +1062,13 @@ export default function Home() {
               </div>
               ) : null}
 
-              {(activeView === "home" || activeView === "tasks") ? (
+              {activeView === "home" ? (
               <div className="order-2 grid gap-5 xl:grid-cols-2">
                 <Panel>
                   <SectionHeader title="Today's Tasks" count={filtered.tasks.length} />
                   <div className="space-y-2">
                     {filtered.tasks.length ? (
-                      filtered.tasks.slice(0, activeView === "tasks" ? undefined : 5).map((task) => (
+                      filtered.tasks.slice(0, 5).map((task) => (
                         <div key={task.id} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-white/60 px-3 py-2">
                           <button
                             className={`size-4 rounded border ${task.status === "Done" ? "border-[color:var(--sage)] bg-[color:var(--sage)]" : "border-[color:var(--muted)]"}`}
@@ -793,7 +1169,9 @@ export default function Home() {
                           <IconSlot tone="clay" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold">{product.name}</p>
-                            <p className="text-xs text-[color:var(--muted)]">{product.category} · {product.status}</p>
+                            <p className="text-xs text-[color:var(--muted)]">
+                              {[product.brand, product.category, product.status].filter(Boolean).join(" · ")}
+                            </p>
                           </div>
                           <div className="hidden shrink-0 gap-2 text-xs sm:flex">
                             {product.link ? (
