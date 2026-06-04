@@ -1500,22 +1500,25 @@ export default function Home() {
 			                            }`}
 			                            onClick={() => setSelectedSalesDate(dateKey)}
 			                          >
-			                            <label className="flex h-full min-w-0 flex-col">
-			                              <span className="block text-sm font-semibold">{day.getDate()}</span>
-			                              <input
-			                                aria-label={`${readableDate(dateKey)} units sold`}
-			                                className={`mt-auto h-7 min-w-0 rounded-md border px-1 text-center text-xs font-semibold outline-none ${
-			                                  isSelected
-			                                    ? "border-white/35 bg-white/20 text-white placeholder:text-white/60"
-			                                    : "border-[color:var(--line)] bg-[color:var(--paper)] text-[color:var(--rose-deep)] placeholder:text-[color:var(--muted)]"
-			                                }`}
-			                                inputMode="numeric"
-			                                onChange={(event) => updateUnitSales(dateKey, event.target.value)}
-			                                onFocus={() => setSelectedSalesDate(dateKey)}
-			                                placeholder="0"
-			                                value={units ? String(units) : ""}
-			                              />
-			                            </label>
+				                            <label className="flex h-full min-w-0 flex-col text-center">
+				                              <span className="block text-sm font-semibold">{day.getDate()}</span>
+				                              <input
+				                                aria-label={`${readableDate(dateKey)} units sold`}
+				                                className={`mt-auto h-5 min-w-0 bg-transparent px-0 text-center text-sm font-semibold outline-none ${
+				                                  isSelected
+				                                    ? "text-white placeholder:text-white/60"
+				                                    : "text-[color:var(--rose-deep)] placeholder:text-[color:var(--muted)]"
+				                                }`}
+				                                inputMode="numeric"
+				                                onChange={(event) => updateUnitSales(dateKey, event.target.value)}
+				                                onFocus={() => setSelectedSalesDate(dateKey)}
+				                                placeholder="0"
+				                                value={units ? String(units) : ""}
+				                              />
+				                              <span className={`truncate text-[9px] leading-none ${isSelected ? "text-white/80" : "text-[color:var(--muted)]"}`}>
+				                                units sold
+				                              </span>
+				                            </label>
 			                          </div>
 			                        );
 			                      })}
