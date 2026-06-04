@@ -41,6 +41,18 @@ type Script = {
   createdAt: string;
 };
 
+type DailyTake = {
+  id: string;
+  hook: string;
+  done: boolean;
+  showLog: boolean;
+  logged: boolean;
+  videoId: string;
+  timePosted: string;
+  videoType: string;
+  gotSales: "Unknown" | "Yes" | "No";
+};
+
 type DailyProduct = {
   id: string;
   productName: string;
@@ -48,6 +60,7 @@ type DailyProduct = {
   link: string;
   script: string;
   done: boolean;
+  takes: DailyTake[];
   createdAt: string;
 };
 
@@ -61,6 +74,7 @@ type ContentItem = {
   gotSales: "Unknown" | "Yes" | "No";
   datePosted: string;
   sourceDailyProductId?: string;
+  sourceDailyTakeId?: string;
   createdAt: string;
 };
 
@@ -181,6 +195,20 @@ function makeId() {
   return crypto.randomUUID();
 }
 
+function createDefaultTake(): DailyTake {
+  return {
+    id: makeId(),
+    hook: "",
+    done: false,
+    showLog: false,
+    logged: false,
+    videoId: "",
+    timePosted: "",
+    videoType: "",
+    gotSales: "Unknown",
+  };
+}
+
 function getDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -231,13 +259,37 @@ function normalizeCoreBrands(coreBrands?: string[]) {
   return Array.from({ length: 5 }, (_, index) => coreBrands?.[index] ?? "");
 }
 
+function normalizeDailyTake(take: Partial<DailyTake> = {}): DailyTake {
+  return {
+    ...createDefaultTake(),
+    ...take,
+    gotSales: take.gotSales ?? "Unknown",
+  };
+}
+
+function normalizeDailyProduct(product: DailyProduct): DailyProduct {
+  const takes = product.takes?.length ? product.takes.map(normalizeDailyTake) : [normalizeDailyTake({ done: product.done })];
+  return {
+    ...product,
+    script: product.script ?? "",
+    done: product.done ?? takes.every((take) => take.done),
+    takes,
+  };
+}
+
+function normalizeDailyProducts(dailyProducts?: Record<string, DailyProduct[]>) {
+  return Object.fromEntries(
+    Object.entries(dailyProducts ?? {}).map(([dateKey, products]) => [dateKey, products.map(normalizeDailyProduct)]),
+  );
+}
+
 function normalizeWorkspaceData(saved: Partial<WorkspaceData>): WorkspaceData {
   const normalized = {
     ...emptyData,
     ...saved,
     content: saved.content ?? [],
     coreBrands: normalizeCoreBrands(saved.coreBrands),
-    dailyProducts: saved.dailyProducts ?? {},
+    dailyProducts: normalizeDailyProducts(saved.dailyProducts),
     unitSales: saved.unitSales ?? {},
     products: (saved.products ?? []).map((product) => ({
       ...product,
@@ -259,6 +311,7 @@ function normalizeWorkspaceData(saved: Partial<WorkspaceData>): WorkspaceData {
       ...product,
       id: makeId(),
       done: false,
+      takes: product.takes.map((take) => ({ ...take, id: makeId(), done: false, logged: false, showLog: false })),
       createdAt: new Date().toISOString(),
     }));
 
@@ -414,7 +467,8 @@ export default function Home() {
   }, [data]);
 
 	  const todaysProducts = useMemo(() => data.dailyProducts[selectedDate] ?? [], [data.dailyProducts, selectedDate]);
-	  const completedToday = todaysProducts.filter((product) => product.done).length;
+	  const todaysTakes = useMemo(() => todaysProducts.flatMap((product) => product.takes), [todaysProducts]);
+	  const completedToday = todaysTakes.filter((take) => take.done).length;
 	  const totalUnitsSold = useMemo(
 	    () => Object.values(data.unitSales).reduce((total, units) => total + units, 0),
 	    [data.unitSales],
@@ -445,13 +499,13 @@ export default function Home() {
 	      },
 	      {
 	        label: "to do",
-	        value: todaysProducts.length,
+	        value: todaysTakes.length,
 	        note: `${completedToday} done today`,
 	        tone: "sand" as const,
 	        view: "tasks" as const,
 	      },
 	    ],
-	    [completedToday, data.content.length, data.products.length, todaysProducts.length, totalUnitsSold],
+	    [completedToday, data.content.length, data.products.length, todaysTakes.length, totalUnitsSold],
 	  );
 
   const query = search.trim().toLowerCase();
@@ -705,6 +759,7 @@ export default function Home() {
       link: dailyProductLink.trim(),
       script: dailyProductScript.trim(),
       done: false,
+      takes: [createDefaultTake()],
       createdAt,
     };
 
@@ -760,29 +815,50 @@ export default function Home() {
     setDailySaveScript(false);
   }
 
+	  function createContentFromDailyProduct(current: WorkspaceData, product: DailyProduct, take?: DailyTake) {
+	    const alreadySaved = take
+	      ? current.content.some((item) => item.sourceDailyTakeId === take.id)
+	      : current.content.some((item) => item.sourceDailyProductId === product.id && !item.sourceDailyTakeId);
+	    if (alreadySaved) {
+	      return current.content;
+	    }
+
+	    return [
+	      {
+	        id: makeId(),
+	        productName: product.productName,
+	        brand: product.brand,
+	        script: product.script,
+	        type: take?.videoType ?? "",
+	        views48: "",
+	        gotSales: take?.gotSales ?? "Unknown",
+	        datePosted: getDateKey(new Date()),
+	        sourceDailyProductId: product.id,
+	        sourceDailyTakeId: take?.id,
+	        createdAt: new Date().toISOString(),
+	      },
+	      ...current.content,
+	    ];
+	  }
+
 	  function updateDailyProduct(id: string, changes: Partial<DailyProduct>) {
 	    setData((current) => {
 	      const currentDailyProducts = current.dailyProducts[selectedDate] ?? [];
 	      const targetProduct = currentDailyProducts.find((product) => product.id === id);
-	      const nextDailyProducts = currentDailyProducts.map((product) => (product.id === id ? { ...product, ...changes } : product));
-	      const shouldCreateContent = changes.done && targetProduct && !current.content.some((item) => item.sourceDailyProductId === id);
+	      const nextDailyProducts = currentDailyProducts.map((product) => {
+	        if (product.id !== id) return product;
+	        const nextProduct = { ...product, ...changes };
+	        if (typeof changes.done === "boolean") {
+	          nextProduct.takes = product.takes.map((take) => ({ ...take, done: changes.done ?? take.done }));
+	        }
+	        return nextProduct;
+	      });
 	      const nextContent =
-	        shouldCreateContent && targetProduct
-	          ? [
-	              {
-	                id: makeId(),
-	                productName: targetProduct.productName,
-	                brand: targetProduct.brand,
-	                script: targetProduct.script,
-	                type: "",
-	                views48: "",
-	                gotSales: "Unknown" as const,
-	                datePosted: getDateKey(new Date()),
-	                sourceDailyProductId: id,
-	                createdAt: new Date().toISOString(),
-	              },
-	              ...current.content,
-	            ]
+	        changes.done && targetProduct
+	          ? targetProduct.takes.reduce(
+	              (content, take) => createContentFromDailyProduct({ ...current, content }, targetProduct, take),
+	              current.content,
+	            )
 	          : current.content;
 
 	      return {
@@ -795,6 +871,66 @@ export default function Home() {
       };
     });
   }
+
+	  function updateDailyTake(productId: string, takeId: string, changes: Partial<DailyTake>, createTrackerItem = false) {
+	    setData((current) => {
+	      const currentDailyProducts = current.dailyProducts[selectedDate] ?? [];
+	      let nextContent = current.content;
+	      const nextDailyProducts = currentDailyProducts.map((product) => {
+	        if (product.id !== productId) return product;
+
+	        const nextTakes = product.takes.map((take) => (take.id === takeId ? { ...take, ...changes } : take));
+	        const targetTake = nextTakes.find((take) => take.id === takeId);
+	        const productDone = nextTakes.length > 0 && nextTakes.every((take) => take.done);
+	        const nextProduct = { ...product, takes: nextTakes, done: productDone };
+
+	        if ((createTrackerItem || changes.done || productDone) && targetTake) {
+	          nextContent = createContentFromDailyProduct({ ...current, content: nextContent }, nextProduct, targetTake);
+	        }
+
+	        return nextProduct;
+	      });
+
+	      return {
+	        ...current,
+	        content: nextContent,
+	        dailyProducts: {
+	          ...current.dailyProducts,
+	          [selectedDate]: nextDailyProducts,
+	        },
+	      };
+	    });
+	  }
+
+	  function addDailyTake(productId: string) {
+	    setData((current) => ({
+	      ...current,
+	      dailyProducts: {
+	        ...current.dailyProducts,
+	        [selectedDate]: (current.dailyProducts[selectedDate] ?? []).map((product) =>
+	          product.id === productId ? { ...product, done: false, takes: [...product.takes, createDefaultTake()] } : product,
+	        ),
+	      },
+	    }));
+	  }
+
+	  function removeDailyTake(productId: string, takeId: string) {
+	    setData((current) => ({
+	      ...current,
+	      dailyProducts: {
+	        ...current.dailyProducts,
+	        [selectedDate]: (current.dailyProducts[selectedDate] ?? []).map((product) => {
+	          if (product.id !== productId) return product;
+	          const nextTakes = product.takes.filter((take) => take.id !== takeId);
+	          return {
+	            ...product,
+	            takes: nextTakes.length ? nextTakes : [createDefaultTake()],
+	            done: nextTakes.length > 0 && nextTakes.every((take) => take.done),
+	          };
+	        }),
+	      },
+	    }));
+	  }
 
 	  function updateContentItem(id: string, changes: Partial<ContentItem>) {
 	    setData((current) => ({
@@ -1116,7 +1252,7 @@ export default function Home() {
                         <p className="text-sm text-[color:var(--sage)]">{readableDate(selectedDate)}</p>
                         <h2 className="mt-1 text-2xl font-semibold">Product Queue</h2>
                         <p className="mt-1 text-sm text-[color:var(--muted)]">
-                          {completedToday}/{todaysProducts.length} products complete
+                          {completedToday}/{todaysTakes.length} takes done today
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -1207,47 +1343,153 @@ export default function Home() {
 
                     <div className="space-y-3">
                       {visibleDailyProducts.length ? (
-                        visibleDailyProducts.map((product) => (
-                          <article key={product.id} className="overflow-hidden rounded-xl border border-[color:var(--line)] bg-white/60">
-                            <div className="flex flex-col gap-3 bg-[color:var(--cream)] p-4 sm:flex-row sm:items-start sm:justify-between">
-                              <div>
-                                <h3 className="text-lg font-semibold">{product.productName}</h3>
-                                <p className="text-sm uppercase tracking-wide text-[color:var(--muted)]">{product.brand || "No brand"}</p>
+                        visibleDailyProducts.map((product) => {
+                          const productComplete = product.takes.length > 0 && product.takes.every((take) => take.done);
+                          return (
+                            <article key={product.id} className="overflow-hidden rounded-xl border border-[color:var(--line)] bg-white/70 shadow-sm">
+                              <div className="flex flex-col gap-3 bg-[color:var(--cream)] p-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <IconSlot tone={productComplete ? "sage" : "sand"} />
+                                    <div className="min-w-0">
+                                      <h3 className="truncate text-lg font-semibold">{product.productName}</h3>
+                                      <p className="text-sm uppercase tracking-wide text-[color:var(--muted)]">{product.brand || "No brand"}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {product.link ? (
+                                    <a className="rounded-lg border border-[color:var(--line)] bg-white/70 px-3 py-1.5 text-sm" href={product.link} rel="noreferrer" target="_blank">
+                                      Open
+                                    </a>
+                                  ) : null}
+                                  <span
+                                    className={`rounded-lg px-3 py-1.5 text-sm ${
+                                      productComplete ? "bg-[color:var(--sage)] text-white" : "bg-[color:var(--paper)] text-[color:var(--muted)]"
+                                    }`}
+                                  >
+                                    {productComplete ? "Complete" : `${product.takes.length} take${product.takes.length === 1 ? "" : "s"}`}
+                                  </span>
+                                  <button className="rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-sm text-[color:var(--rose-deep)]" onClick={() => removeDailyProduct(product.id)} type="button">
+                                    Remove
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                {product.link ? (
-                                  <a className="rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-sm" href={product.link} rel="noreferrer" target="_blank">
-                                    Open
-                                  </a>
-                                ) : null}
-                                <button
-                                  className={`rounded-lg px-3 py-1.5 text-sm ${product.done ? "bg-[color:var(--sage)] text-white" : "border border-[color:var(--line)]"}`}
-                                  onClick={() => updateDailyProduct(product.id, { done: !product.done })}
-                                  type="button"
-                                >
-                                  {product.done ? "Done" : "Mark Done"}
-                                </button>
-                                <button className="rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-sm text-[color:var(--rose-deep)]" onClick={() => removeDailyProduct(product.id)} type="button">
-                                  Remove
-                                </button>
+
+                              <div className="space-y-4 p-4">
+                                <div>
+                                  <div className="mb-2 flex items-center justify-between gap-3">
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Script</span>
+                                    <button className="text-xs font-semibold text-[color:var(--sage)]" onClick={() => saveDailyScriptToVault(product)} type="button">
+                                      Save to Scripts
+                                    </button>
+                                  </div>
+                                  <textarea
+                                    className="min-h-28 w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 py-2 text-sm leading-6 outline-none focus:border-[color:var(--sage)]"
+                                    onChange={(event) => updateDailyProduct(product.id, { script: event.target.value })}
+                                    placeholder="Paste or write the script for this product..."
+                                    value={product.script}
+                                  />
+                                </div>
+
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Takes</span>
+                                    <button className="rounded-lg border border-dashed border-[color:var(--line)] px-3 py-1.5 text-sm text-[color:var(--sage)]" onClick={() => addDailyTake(product.id)} type="button">
+                                      + Add Take
+                                    </button>
+                                  </div>
+
+                                  {product.takes.map((take, takeIndex) => (
+                                    <div key={take.id} className="rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3">
+                                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                          <p className="text-sm font-semibold">Take {takeIndex + 1}</p>
+                                          <p className="text-xs text-[color:var(--muted)]">{take.logged ? "Saved to Content Tracker" : take.done ? "Done" : "Planned"}</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                          <button
+                                            className={`rounded-lg px-3 py-1.5 text-sm ${
+                                              take.done ? "bg-[color:var(--sage)] text-white" : "border border-[color:var(--line)] bg-white/70"
+                                            }`}
+                                            onClick={() => updateDailyTake(product.id, take.id, { done: !take.done })}
+                                            type="button"
+                                          >
+                                            {take.done ? "Done" : "Mark Done"}
+                                          </button>
+                                          <button
+                                            className="rounded-lg border border-[color:var(--line)] bg-white/70 px-3 py-1.5 text-sm"
+                                            onClick={() => updateDailyTake(product.id, take.id, { showLog: !take.showLog })}
+                                            type="button"
+                                          >
+                                            Log Video
+                                          </button>
+                                          {product.takes.length > 1 ? (
+                                            <button className="rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-sm text-[color:var(--rose-deep)]" onClick={() => removeDailyTake(product.id, take.id)} type="button">
+                                              Remove
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      </div>
+
+                                      <textarea
+                                        className="min-h-20 w-full rounded-lg border border-[color:var(--line)] bg-white/80 px-3 py-2 text-sm leading-6 outline-none focus:border-[color:var(--sage)]"
+                                        onChange={(event) => updateDailyTake(product.id, take.id, { hook: event.target.value })}
+                                        placeholder="Hook or angle for this take..."
+                                        value={take.hook}
+                                      />
+
+                                      {take.showLog ? (
+                                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                          <input
+                                            className="h-10 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+                                            onChange={(event) => updateDailyTake(product.id, take.id, { videoId: event.target.value })}
+                                            placeholder="Video ID or link"
+                                            value={take.videoId}
+                                          />
+                                          <input
+                                            className="h-10 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+                                            onChange={(event) => updateDailyTake(product.id, take.id, { timePosted: event.target.value })}
+                                            placeholder="Time posted"
+                                            value={take.timePosted}
+                                          />
+                                          <select
+                                            className="h-10 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+                                            onChange={(event) => updateDailyTake(product.id, take.id, { videoType: event.target.value })}
+                                            value={take.videoType}
+                                          >
+                                            <option value="">Content type</option>
+                                            {contentTypes.map((type) => (
+                                              <option key={type} value={type}>
+                                                {type}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <select
+                                            className="h-10 rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-sm outline-none focus:border-[color:var(--sage)]"
+                                            onChange={(event) => updateDailyTake(product.id, take.id, { gotSales: event.target.value as DailyTake["gotSales"] })}
+                                            value={take.gotSales}
+                                          >
+                                            <option value="Unknown">Got sales?</option>
+                                            <option value="Yes">Yes</option>
+                                            <option value="No">No</option>
+                                          </select>
+                                          <button
+                                            className="h-10 rounded-lg bg-[color:var(--sage)] px-4 text-sm font-semibold text-white sm:col-span-2"
+                                            onClick={() => updateDailyTake(product.id, take.id, { done: true, logged: true, showLog: false }, true)}
+                                            type="button"
+                                          >
+                                            Save to Content Tracker
+                                          </button>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                            <div className="p-4">
-                              <div className="mb-2 flex items-center justify-between">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Script</span>
-                                <button className="text-xs text-[color:var(--sage)]" onClick={() => saveDailyScriptToVault(product)} type="button">
-                                  Save to Script Vault
-                                </button>
-                              </div>
-                              <textarea
-                                className="min-h-28 w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 py-2 text-sm leading-6 outline-none focus:border-[color:var(--sage)]"
-                                onChange={(event) => updateDailyProduct(product.id, { script: event.target.value })}
-                                placeholder="Paste or write your script here..."
-                                value={product.script}
-                              />
-                            </div>
-                          </article>
-                        ))
+                            </article>
+                          );
+                        })
                       ) : (
                         <EmptyState label="Nothing scheduled for this day." action="Add a product to build your filming queue." />
                       )}
@@ -1554,7 +1796,7 @@ export default function Home() {
 			              {activeView === "home" ? (
 	              <div className="order-2 grid gap-5 xl:grid-cols-2">
 	                <Panel>
-	                  <SectionHeader title="Today's Content" count={todaysProducts.length} />
+	                  <SectionHeader title="Today's Content" count={todaysTakes.length} />
 	                  <div className="space-y-2">
 	                    {todaysProducts.length ? (
 	                      todaysProducts.slice(0, 5).map((product) => (
@@ -1569,7 +1811,7 @@ export default function Home() {
 	                            {product.productName}
 	                          </span>
 	                          <span className="shrink-0 rounded-full bg-[color:var(--cream)] px-3 py-1 text-xs text-[color:var(--rose-deep)]">
-	                            {product.done ? "Done" : "Planned"}
+	                            {product.done ? "Done" : `${product.takes.length} take${product.takes.length === 1 ? "" : "s"}`}
 	                          </span>
 	                        </div>
 	                      ))
