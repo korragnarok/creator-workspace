@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type ItemType = "task" | "hook" | "product" | "script";
+type ViewType = "home" | "tasks" | "hooks" | "products" | "scripts";
 
 type Task = {
   id: string;
@@ -59,6 +60,43 @@ const navItems = [
   { label: "Product Bank", view: "products" },
   { label: "Script Vault", view: "scripts" },
 ] as const;
+
+const viewToForm: Record<Exclude<ViewType, "home">, ItemType> = {
+  tasks: "task",
+  hooks: "hook",
+  products: "product",
+  scripts: "script",
+};
+
+const typeToView: Record<ItemType, Exclude<ViewType, "home">> = {
+  task: "tasks",
+  hook: "hooks",
+  product: "products",
+  script: "scripts",
+};
+
+const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
+  home: {
+    title: "welcome back, Kourtney",
+    subtitle: "Let's create, plan, and stay consistent.",
+  },
+  tasks: {
+    title: "Tasks",
+    subtitle: "Plan, update, and finish today's creator work.",
+  },
+  hooks: {
+    title: "Hook Bank",
+    subtitle: "Save scroll-stopping openings for future videos.",
+  },
+  products: {
+    title: "Product Bank",
+    subtitle: "Track products, links, categories, and content status.",
+  },
+  scripts: {
+    title: "Script Vault",
+    subtitle: "Draft, organize, and revisit your content scripts.",
+  },
+};
 
 const quickAdds: Array<{ label: string; type: ItemType; tone: "rose" | "sage" | "clay" | "sand" }> = [
   { label: "New Task", type: "task", tone: "rose" },
@@ -134,7 +172,7 @@ export default function Home() {
   const storageReady = useRef(false);
   const formPanelRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<WorkspaceData>(emptyData);
-  const [activeView, setActiveView] = useState<(typeof navItems)[number]["view"]>("home");
+  const [activeView, setActiveView] = useState<ViewType>("home");
   const [activeForm, setActiveForm] = useState<ItemType>("task");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -232,9 +270,18 @@ export default function Home() {
     setScriptStatus("Draft");
   }
 
+  function handleViewChange(view: ViewType) {
+    setActiveView(view);
+    if (view !== "home") {
+      setActiveForm(viewToForm[view]);
+      resetForm();
+    }
+  }
+
   function startAdd(type: ItemType) {
     resetForm();
     setActiveForm(type);
+    setActiveView(typeToView[type]);
     window.setTimeout(() => {
       formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
@@ -243,6 +290,7 @@ export default function Home() {
   function startEdit(type: ItemType, id: string) {
     resetForm();
     setActiveForm(type);
+    setActiveView(typeToView[type]);
     setEditingId(id);
 
     if (type === "task") {
@@ -408,7 +456,7 @@ export default function Home() {
             {navItems.map((item) => (
               <button
                 key={item.label}
-                onClick={() => setActiveView(item.view)}
+                onClick={() => handleViewChange(item.view)}
                 className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium transition ${
                   activeView === item.view
                     ? "bg-[color:var(--rose)] text-[color:var(--foreground)]"
@@ -475,6 +523,7 @@ export default function Home() {
 
           <div className="grid gap-5 px-4 py-2 sm:px-8 sm:py-5 2xl:grid-cols-[1fr_350px]">
             <div className="flex flex-col gap-5">
+              {activeView === "home" ? (
               <section className="grid grid-cols-[minmax(0,1fr)_minmax(142px,0.95fr)] items-center gap-4 sm:block">
                 <div>
                   <h1 className="max-w-4xl break-words font-[family-name:var(--font-heading)] text-3xl font-bold leading-tight sm:text-5xl">
@@ -505,8 +554,18 @@ export default function Home() {
                   ))}
                 </div>
               </section>
+              ) : (
+                <section className="rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-5 shadow-sm">
+                  <p className="text-sm text-[color:var(--sage)]">Creator workspace</p>
+                  <h1 className="mt-1 font-[family-name:var(--font-heading)] text-4xl font-bold leading-tight">
+                    {viewDetails[activeView].title}
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-base leading-7 text-[color:var(--muted)]">{viewDetails[activeView].subtitle}</p>
+                </section>
+              )}
 
-              <div ref={formPanelRef} className="order-4 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              {activeView !== "home" ? (
+              <div ref={formPanelRef} className="order-1 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <Panel>
                   <SectionHeader title={editingId ? `Edit ${formTitles[activeForm].replace("Add ", "").replace("Save a ", "")}` : formTitles[activeForm]} />
                   <form className="space-y-3" onSubmit={handleSubmit}>
@@ -625,7 +684,9 @@ export default function Home() {
                   <div className="mt-8 h-24 rounded-lg border border-white/35 bg-white/15" aria-label="Image placeholder" />
                 </section>
               </div>
+              ) : null}
 
+              {(activeView === "home" || activeView === "tasks") ? (
               <div className="order-2 grid gap-5 xl:grid-cols-2">
                 <Panel>
                   <SectionHeader title="Today's Tasks" count={filtered.tasks.length} />
@@ -664,11 +725,12 @@ export default function Home() {
                   </button>
                 </Panel>
 
+                {activeView === "home" ? (
                 <Panel>
                   <SectionHeader title="Recent Scripts" count={filtered.scripts.length} />
                   <div className="space-y-3">
                     {filtered.scripts.length ? (
-                      filtered.scripts.slice(0, activeView === "scripts" ? undefined : 4).map((script) => (
+                      filtered.scripts.slice(0, 4).map((script) => (
                         <article key={script.id} className="flex gap-3 rounded-lg border border-[color:var(--line)] bg-[color:var(--cream)]/60 p-3">
                           <IconSlot tone="neutral" />
                           <div className="min-w-0 flex-1">
@@ -690,9 +752,13 @@ export default function Home() {
                     )}
                   </div>
                 </Panel>
+                ) : null}
               </div>
+              ) : null}
 
+              {(activeView === "home" || activeView === "hooks" || activeView === "products") ? (
               <div className="order-3 grid gap-5 xl:grid-cols-2">
+                {(activeView === "home" || activeView === "hooks") ? (
                 <Panel>
                   <SectionHeader title="Recent Hooks" count={filtered.hooks.length} />
                   <div className="space-y-3">
@@ -715,7 +781,9 @@ export default function Home() {
                     )}
                   </div>
                 </Panel>
+                ) : null}
 
+                {(activeView === "home" || activeView === "products") ? (
                 <Panel>
                   <SectionHeader title="Recent Products" count={filtered.products.length} />
                   <div className="space-y-2">
@@ -747,7 +815,45 @@ export default function Home() {
                     )}
                   </div>
                 </Panel>
+                ) : null}
               </div>
+              ) : null}
+
+              {activeView === "scripts" ? (
+                <div className="order-2">
+                  <Panel>
+                    <SectionHeader title="Script Vault" count={filtered.scripts.length} />
+                    <div className="space-y-3">
+                      {filtered.scripts.length ? (
+                        filtered.scripts.map((script) => (
+                          <article key={script.id} className="rounded-lg border border-[color:var(--line)] bg-[color:var(--cream)]/60 p-3">
+                            <div className="flex gap-3">
+                              <IconSlot tone="neutral" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold">{script.title}</p>
+                                <p className="text-xs text-[color:var(--muted)]">
+                                  {script.product} · {script.status}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 gap-2 text-xs">
+                                <button className="text-[color:var(--sage)]" onClick={() => startEdit("script", script.id)} type="button">
+                                  Edit
+                                </button>
+                                <button className="text-[color:var(--rose-deep)]" onClick={() => deleteItem("script", script.id)} type="button">
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                            {script.body ? <p className="mt-3 rounded-lg bg-white/60 p-3 text-sm leading-6 text-[color:var(--muted)]">{script.body}</p> : null}
+                          </article>
+                        ))
+                      ) : (
+                        <EmptyState label="No scripts saved yet." action="Create a script draft when you have a video idea." />
+                      )}
+                    </div>
+                  </Panel>
+                </div>
+              ) : null}
             </div>
 
             <div className="hidden space-y-5 lg:block">
@@ -794,7 +900,7 @@ export default function Home() {
             className={`flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1 text-[11px] ${
               activeView === item.view ? "text-[color:var(--rose-deep)]" : "text-[color:var(--muted)]"
             }`}
-            onClick={() => setActiveView(item.view)}
+            onClick={() => handleViewChange(item.view)}
             type="button"
           >
             <IconSlot tone={activeView === item.view ? "rose" : "neutral"} />
