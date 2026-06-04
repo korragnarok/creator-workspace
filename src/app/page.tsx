@@ -5,7 +5,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type ItemType = "task" | "hook" | "product" | "script" | "content";
-type ViewType = "home" | "tasks" | "tracker" | "hooks" | "products" | "scripts";
+type ViewType = "home" | "tasks" | "tracker" | "calendar" | "hooks" | "products" | "scripts";
 
 type Task = {
   id: string;
@@ -72,6 +72,7 @@ type WorkspaceData = {
   content: ContentItem[];
   coreBrands: string[];
   dailyProducts: Record<string, DailyProduct[]>;
+  unitSales: Record<string, number>;
 };
 
 const emptyData: WorkspaceData = {
@@ -82,6 +83,7 @@ const emptyData: WorkspaceData = {
   content: [],
   coreBrands: ["", "", "", "", ""],
   dailyProducts: {},
+  unitSales: {},
 };
 
 const storageKey = "creator-workspace-data";
@@ -114,7 +116,7 @@ const navItems = [
   { label: "Script Vault", view: "scripts" },
 ] as const;
 
-const viewToForm: Record<Exclude<ViewType, "home">, ItemType> = {
+const viewToForm: Partial<Record<Exclude<ViewType, "home">, ItemType>> = {
   tasks: "product",
   tracker: "content",
   hooks: "hook",
@@ -142,6 +144,10 @@ const viewDetails: Record<ViewType, { title: string; subtitle: string }> = {
   tracker: {
     title: "Content Tracker",
     subtitle: "Review posted content, 48-hour views, sales signal, post date, and content type.",
+  },
+  calendar: {
+    title: "Sales Calendar",
+    subtitle: "Tap a day to log units sold and update your dashboard total.",
   },
   hooks: {
     title: "Hook Bank",
@@ -204,6 +210,13 @@ function readableDate(dateKey: string) {
   });
 }
 
+function readableMonth(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function parseCount(value: string) {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -225,6 +238,7 @@ function normalizeWorkspaceData(saved: Partial<WorkspaceData>): WorkspaceData {
     content: saved.content ?? [],
     coreBrands: normalizeCoreBrands(saved.coreBrands),
     dailyProducts: saved.dailyProducts ?? {},
+    unitSales: saved.unitSales ?? {},
     products: (saved.products ?? []).map((product) => ({
       ...product,
       brand: product.brand ?? "",
@@ -346,9 +360,14 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>("home");
   const [activeForm, setActiveForm] = useState<ItemType>("task");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [selectedDate, setSelectedDate] = useState(() => getDateKey(new Date()));
-  const [dailyBrandFilter, setDailyBrandFilter] = useState("All");
+	  const [search, setSearch] = useState("");
+	  const [selectedDate, setSelectedDate] = useState(() => getDateKey(new Date()));
+	  const [selectedSalesDate, setSelectedSalesDate] = useState(() => getDateKey(new Date()));
+	  const [calendarMonth, setCalendarMonth] = useState(() => {
+	    const now = new Date();
+	    return new Date(now.getFullYear(), now.getMonth(), 1);
+	  });
+	  const [dailyBrandFilter, setDailyBrandFilter] = useState("All");
   const [dailySort, setDailySort] = useState<"original" | "brand" | "done" | "remaining">("original");
 
   const [taskTitle, setTaskTitle] = useState("");
@@ -396,7 +415,10 @@ export default function Home() {
 
 	  const todaysProducts = useMemo(() => data.dailyProducts[selectedDate] ?? [], [data.dailyProducts, selectedDate]);
 	  const completedToday = todaysProducts.filter((product) => product.done).length;
-	  const totalUnitsSold = useMemo(() => data.products.reduce((total, product) => total + product.unitsSold, 0), [data.products]);
+	  const totalUnitsSold = useMemo(
+	    () => Object.values(data.unitSales).reduce((total, units) => total + units, 0),
+	    [data.unitSales],
+	  );
 
 	  const metrics = useMemo(
 	    () => [
@@ -405,24 +427,28 @@ export default function Home() {
 	        value: data.products.length,
 	        note: "in product bank",
 	        tone: "rose" as const,
+	        view: "products" as const,
 	      },
 	      {
 	        label: "total videos",
 	        value: data.content.length,
 	        note: "tracked",
 	        tone: "sage" as const,
+	        view: "tracker" as const,
 	      },
 	      {
 	        label: "units sold",
 	        value: totalUnitsSold,
-	        note: "total",
+	        note: "from calendar",
 	        tone: "clay" as const,
+	        view: "calendar" as const,
 	      },
 	      {
 	        label: "to do",
 	        value: todaysProducts.length,
 	        note: `${completedToday} done today`,
 	        tone: "sand" as const,
+	        view: "tasks" as const,
 	      },
 	    ],
 	    [completedToday, data.content.length, data.products.length, todaysProducts.length, totalUnitsSold],
@@ -459,11 +485,21 @@ export default function Home() {
     }),
     [data, query],
   );
-  const topProducts = useMemo(
-    () => [...data.products].filter((product) => product.unitsSold > 0).sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 4),
-    [data.products],
-  );
-  const topProductMaxUnits = topProducts[0]?.unitsSold ?? 0;
+	  const topProducts = useMemo(
+	    () => [...data.products].filter((product) => product.unitsSold > 0).sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 4),
+	    [data.products],
+	  );
+	  const topProductMaxUnits = topProducts[0]?.unitsSold ?? 0;
+	  const calendarDays = useMemo(() => {
+	    const firstDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+	    const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+	    const leadingBlanks = firstDay.getDay();
+	    return [
+	      ...Array.from({ length: leadingBlanks }, () => null),
+	      ...Array.from({ length: daysInMonth }, (_, index) => new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), index + 1)),
+	    ];
+	  }, [calendarMonth]);
+	  const selectedSalesUnits = data.unitSales[selectedSalesDate] ?? 0;
 
   function resetForm() {
     setEditingId(null);
@@ -488,13 +524,14 @@ export default function Home() {
     setScriptStatus("Draft");
   }
 
-  function handleViewChange(view: ViewType) {
-    setActiveView(view);
-    if (view !== "home") {
-      setActiveForm(viewToForm[view]);
-      resetForm();
-    }
-  }
+	  function handleViewChange(view: ViewType) {
+	    setActiveView(view);
+	    const nextForm = view !== "home" ? viewToForm[view] : undefined;
+	    if (nextForm) {
+	      setActiveForm(nextForm);
+	      resetForm();
+	    }
+	  }
 
   function startAdd(type: ItemType) {
     resetForm();
@@ -750,6 +787,22 @@ export default function Home() {
 	    });
 	  }
 
+	  function updateUnitSales(dateKey: string, value: string) {
+	    const units = parseCount(value);
+	    setData((current) => {
+	      const nextUnitSales = { ...current.unitSales };
+	      if (units > 0) {
+	        nextUnitSales[dateKey] = units;
+	      } else {
+	        delete nextUnitSales[dateKey];
+	      }
+	      return {
+	        ...current,
+	        unitSales: nextUnitSales,
+	      };
+	    });
+	  }
+
 	  function removeDailyProduct(id: string) {
     setData((current) => ({
       ...current,
@@ -916,25 +969,37 @@ export default function Home() {
 		                <div className="min-h-40 rounded-2xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#a45166,#ead5d1)] p-5 text-white shadow-sm sm:hidden">
 		                  <p className="max-w-28 text-2xl leading-snug">small steps create big content.</p>
 		                  <div className="mt-5 grid h-12 w-full place-items-center rounded-lg border border-white/35 bg-white/20">
-		                    <img alt="" className="size-full object-cover opacity-0" src="/images/small-steps-card.png" />
+		                    <img
+		                      alt=""
+		                      className="size-full object-cover"
+		                      onError={(event) => {
+		                        event.currentTarget.style.display = "none";
+		                      }}
+		                      src="/images/small-steps-card.png"
+		                    />
 		                  </div>
 		                </div>
 
 			                <div className="col-span-2 mt-5 flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1fr)]">
 			                  <div className="order-1 grid min-w-0 grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3">
-		                    {metrics.map((metric) => (
-		                      <article key={metric.label} className="min-w-0 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 shadow-sm sm:p-4">
-		                        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 xl:flex-col xl:items-start">
-		                          <IconSlot tone={metric.tone} />
-		                          <div className="min-w-0">
-			                            <p className="text-xs font-semibold uppercase leading-4 tracking-wide text-[color:var(--rose-deep)] sm:text-sm">{metric.label}</p>
+			                    {metrics.map((metric) => (
+			                      <button
+			                        key={metric.label}
+			                        className="min-w-0 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] p-3 text-left shadow-sm transition hover:border-[color:var(--rose-deep)] sm:p-4"
+			                        onClick={() => handleViewChange(metric.view)}
+			                        type="button"
+			                      >
+			                        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 xl:flex-col xl:items-start">
+			                          <IconSlot tone={metric.tone} />
+			                          <div className="min-w-0">
+				                            <p className="text-xs font-semibold uppercase leading-4 tracking-wide text-[color:var(--rose-deep)] sm:text-sm">{metric.label}</p>
 		                            <p className="text-2xl font-semibold sm:text-3xl">{metric.value}</p>
 		                            <p className="text-xs leading-4 text-[color:var(--sage)] sm:text-sm">{metric.note}</p>
-		                          </div>
-		                        </div>
-		                      </article>
-		                    ))}
-		                  </div>
+			                          </div>
+			                        </div>
+			                      </button>
+			                    ))}
+			                  </div>
 
 				                  <Panel className="order-2 !bg-[#4f503f] !text-[#fffdf9]">
 			                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/20 pb-4">
@@ -1302,13 +1367,20 @@ export default function Home() {
 	                <section className="hidden min-h-64 rounded-xl border border-[color:var(--line)] bg-[linear-gradient(135deg,#a45166,#ead5d1)] p-7 text-white shadow-sm sm:block">
 	                  <p className="max-w-48 text-3xl leading-snug">small steps create big content.</p>
 	                  <div className="mt-8 grid h-24 w-full place-items-center rounded-lg border border-white/35 bg-white/20">
-	                    <img alt="" className="size-full object-cover opacity-0" src="/images/small-steps-card.png" />
+		                    <img
+		                      alt=""
+		                      className="size-full object-cover"
+		                      onError={(event) => {
+		                        event.currentTarget.style.display = "none";
+		                      }}
+		                      src="/images/small-steps-card.png"
+		                    />
 	                  </div>
 		                </section>
 	              </div>
 	              ) : null}
 
-	              {activeView === "tracker" ? (
+		              {activeView === "tracker" ? (
 	                <div className="order-2">
 	                  <Panel>
 	                    <SectionHeader title="Content Tracker" count={data.content.length} />
@@ -1377,10 +1449,81 @@ export default function Home() {
 	                      )}
 	                    </div>
 	                  </Panel>
-	                </div>
-	              ) : null}
+		                </div>
+		              ) : null}
 
-		              {activeView === "home" ? (
+		              {activeView === "calendar" ? (
+		                <div className="order-2">
+		                  <Panel>
+		                    <div className="mb-4 flex items-center justify-between gap-3">
+		                      <button
+		                        className="rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm"
+		                        onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
+		                        type="button"
+		                      >
+		                        Prev
+		                      </button>
+		                      <h2 className="text-lg font-semibold">{readableMonth(calendarMonth)}</h2>
+		                      <button
+		                        className="rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm"
+		                        onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
+		                        type="button"
+		                      >
+		                        Next
+		                      </button>
+		                    </div>
+		                    <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
+		                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+		                        <span key={day}>{day}</span>
+		                      ))}
+		                    </div>
+		                    <div className="mt-2 grid grid-cols-7 gap-1">
+		                      {calendarDays.map((day, index) => {
+		                        if (!day) return <div key={`blank-${index}`} className="aspect-square" />;
+		                        const dateKey = getDateKey(day);
+		                        const units = data.unitSales[dateKey] ?? 0;
+		                        const isSelected = dateKey === selectedSalesDate;
+		                        return (
+		                          <button
+		                            key={dateKey}
+		                            className={`aspect-square min-w-0 rounded-lg border p-1 text-left transition ${
+		                              isSelected
+		                                ? "border-[color:var(--sage)] bg-[color:var(--sage)] text-white"
+		                                : "border-[color:var(--line)] bg-white/70 text-[color:var(--foreground)]"
+		                            }`}
+		                            onClick={() => setSelectedSalesDate(dateKey)}
+		                            type="button"
+		                          >
+		                            <span className="block text-sm font-semibold">{day.getDate()}</span>
+		                            {units ? (
+		                              <span className={`mt-1 block truncate text-[10px] ${isSelected ? "text-white" : "text-[color:var(--rose-deep)]"}`}>
+		                                {units} sold
+		                              </span>
+		                            ) : null}
+		                          </button>
+		                        );
+		                      })}
+		                    </div>
+		                  </Panel>
+
+		                  <Panel className="mt-5">
+		                    <p className="text-sm text-[color:var(--sage)]">{readableDate(selectedSalesDate)}</p>
+		                    <h2 className="mt-1 text-xl font-semibold">Units Sold</h2>
+		                    <input
+		                      className="mt-4 h-12 w-full rounded-lg border border-[color:var(--line)] bg-white/80 px-3 text-lg outline-none focus:border-[color:var(--sage)]"
+		                      inputMode="numeric"
+		                      onChange={(event) => updateUnitSales(selectedSalesDate, event.target.value)}
+		                      placeholder="0"
+		                      value={selectedSalesUnits ? String(selectedSalesUnits) : ""}
+		                    />
+		                    <p className="mt-3 text-sm text-[color:var(--muted)]">
+		                      Dashboard units sold total: <span className="font-semibold text-[color:var(--foreground)]">{totalUnitsSold}</span>
+		                    </p>
+		                  </Panel>
+		                </div>
+		              ) : null}
+
+			              {activeView === "home" ? (
 	              <div className="order-2 grid gap-5 xl:grid-cols-2">
 	                <Panel>
 	                  <SectionHeader title="Today's Content" count={todaysProducts.length} />
